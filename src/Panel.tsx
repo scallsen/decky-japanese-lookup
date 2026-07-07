@@ -259,55 +259,6 @@ export const Panel: FC = () => {
             Add capture area
           </ButtonItem>
         </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Hold time (ms)"
-            description="How long to hold the button before capture fires"
-            value={settings.trigger_hold_ms}
-            min={0}
-            max={1000}
-            step={50}
-            showValue
-            onChange={(v) => update("trigger_hold_ms", v)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label="Open lookup after capture"
-            description="Pop the Quick Access menu when a line is read"
-            checked={!!settings.auto_open_qam}
-            onChange={(v) => update("auto_open_qam", v)}
-          />
-        </PanelSectionRow>
-      </PanelSection>
-
-      <PanelSection title="OCR">
-        <PanelSectionRow>
-          <DropdownItem
-            label="Backend"
-            rgOptions={BACKEND_OPTIONS}
-            selectedOption={settings.ocr_backend}
-            onChange={(o) => update("ocr_backend", o.data)}
-          />
-        </PanelSectionRow>
-        {settings.ocr_backend === "gemini" && (
-          <PanelSectionRow>
-            <TextField
-              label="Gemini API key"
-              value={settings.gemini_api_key}
-              bIsPassword
-              onChange={(e) => update("gemini_api_key", e.target.value)}
-            />
-          </PanelSectionRow>
-        )}
-        <PanelSectionRow>
-          <ToggleField
-            label="Strip speaker name"
-            description="Remove 【Name】 / Name「 prefixes before lookup"
-            checked={!!settings.strip_speaker_name}
-            onChange={(v) => update("strip_speaker_name", v)}
-          />
-        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Anki">
@@ -405,6 +356,55 @@ export const Panel: FC = () => {
             ) : null}
           </>
         )}
+      </PanelSection>
+
+      <PanelSection title="Advanced setting">
+        <PanelSectionRow>
+          <DropdownItem
+            label="Backend"
+            rgOptions={BACKEND_OPTIONS}
+            selectedOption={settings.ocr_backend}
+            onChange={(o) => update("ocr_backend", o.data)}
+          />
+        </PanelSectionRow>
+        {settings.ocr_backend === "gemini" && (
+          <PanelSectionRow>
+            <TextField
+              label="Gemini API key"
+              value={settings.gemini_api_key}
+              bIsPassword
+              onChange={(e) => update("gemini_api_key", e.target.value)}
+            />
+          </PanelSectionRow>
+        )}
+        <PanelSectionRow>
+          <ToggleField
+            label="Strip speaker name"
+            description="Remove 【Name】 / Name「 prefixes before lookup"
+            checked={!!settings.strip_speaker_name}
+            onChange={(v) => update("strip_speaker_name", v)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <SliderField
+            label="Hold time (ms)"
+            description="How long to hold the button before capture fires"
+            value={settings.trigger_hold_ms}
+            min={0}
+            max={1000}
+            step={50}
+            showValue
+            onChange={(v) => update("trigger_hold_ms", v)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Open lookup after capture"
+            description="Pop the Quick Access menu when a line is read"
+            checked={!!settings.auto_open_qam}
+            onChange={(v) => update("auto_open_qam", v)}
+          />
+        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Status">
