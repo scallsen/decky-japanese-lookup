@@ -5,11 +5,16 @@ import os
 from typing import Any
 
 DEFAULTS: dict[str, Any] = {
-    # Capture region as fractions of screen size (VN text boxes live in the
-    # bottom third by default). x, y = top-left corner.
+    # Capture regions as fractions of screen size. "region" is the primary
+    # text box (bottom third by default); "region_alt" is a second layout
+    # (e.g. full-screen NVL text) selectable per button.
     "region": {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36},
+    "region_alt": {"x": 0.1, "y": 0.08, "w": 0.8, "h": 0.84},
     # crop to region before OCR ("region") or OCR the whole frame ("fullscreen")
     "capture_mode": "region",
+    # back button -> what it captures: "off" | "box" | "alt" | "fullscreen".
+    # None = not yet migrated from the legacy single trigger_button setting.
+    "button_map": None,
     # "rapidocr" (local, default) | "gemini" (cloud, needs api key)
     "ocr_backend": "rapidocr",
     "gemini_api_key": "",

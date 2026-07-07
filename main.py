@@ -34,6 +34,10 @@ CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
 class Plugin:
     async def _main(self):
         self.settings = Settings(SETTINGS_DIR)
+        if not self.settings.get("button_map"):
+            # migrate from the single-trigger era: old button keeps the box
+            legacy = self.settings.get("trigger_button") or "L5"
+            self.settings.set("button_map", {legacy: "box"})
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
@@ -91,16 +95,16 @@ class Plugin:
 
     # ---- the pipeline ----------------------------------------------------
 
-    async def capture_and_mine(self):
+    async def capture_and_mine(self, mode: str = "box"):
         if self._busy:
             return {"ok": False, "error": "capture already in progress"}
         self._busy = True
         try:
-            return await self._run_pipeline()
+            return await self._run_pipeline(mode)
         finally:
             self._busy = False
 
-    async def _run_pipeline(self):
+    async def _run_pipeline(self, mode: str = "box"):
         ts = int(time.time() * 1000)
         full_png = os.path.join(CAPTURES_DIR, f"capture_{ts}.png")
         crop_png = os.path.join(CAPTURES_DIR, f"crop_{ts}.png")
@@ -127,12 +131,17 @@ class Plugin:
                 await self._emit("error", message=f"Capture failed: {e}")
                 return {"ok": False, "error": str(e)}
 
-        # 2. OCR
+        # 2. OCR — the trigger button picks which layout gets cropped
         await self._emit("ocr")
         backend_name = self.settings.get("ocr_backend")
-        region = None
-        if self.settings.get("capture_mode") == "region":
+        if mode == "fullscreen":
+            region = None
+        elif mode == "alt":
+            region = self.settings.get("region_alt")
+        elif self.settings.get("capture_mode") == "region":
             region = self.settings.get("region")
+        else:
+            region = None
 
         runtime_ok = self.installer.is_installed()
         cloud_full_frame = False

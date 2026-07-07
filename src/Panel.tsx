@@ -23,10 +23,14 @@ import {
 import { LookupSection } from "./LookupPanel";
 import type { OverlayState } from "./Overlay";
 
-const TRIGGER_OPTIONS = ["L4", "R4", "L5", "R5"].map((b) => ({
-  data: b,
-  label: `${b} (back button)`,
-}));
+const TRIGGER_BUTTONS = ["L4", "R4", "L5", "R5"];
+
+const BUTTON_MODE_OPTIONS = [
+  { data: "off", label: "Disabled" },
+  { data: "box", label: "Text box region" },
+  { data: "alt", label: "Alt region" },
+  { data: "fullscreen", label: "Full screen" },
+];
 
 const BACKEND_OPTIONS = [
   { data: "rapidocr", label: "Local (RapidOCR, offline)" },
@@ -37,6 +41,78 @@ const ANKI_IMAGE_OPTIONS = [
   { data: "full", label: "Full screenshot" },
   { data: "crop", label: "Text box crop" },
 ];
+
+// Edge-based region editor: each slider owns one edge of the preview
+// rectangle, so what you drag is exactly what moves. Stored as x/y/w/h;
+// converted here. Edges can't cross (5% minimum size).
+const MIN_SIZE = 0.05;
+
+const RegionSliders: FC<{
+  label: string;
+  region: Region;
+  onChange: (part: Partial<Region>) => void;
+}> = ({ label, region, onChange }) => {
+  const left = region.x;
+  const top = region.y;
+  const right = region.x + region.w;
+  const bottom = region.y + region.h;
+
+  const pct = (v: number) => Math.round(v * 100);
+
+  const setLeft = (v: number) => {
+    const x = Math.min(v, right - MIN_SIZE);
+    onChange({ x, w: right - x });
+  };
+  const setRight = (v: number) => {
+    const r = Math.max(v, left + MIN_SIZE);
+    onChange({ w: r - left });
+  };
+  const setTop = (v: number) => {
+    const y = Math.min(v, bottom - MIN_SIZE);
+    onChange({ y, h: bottom - y });
+  };
+  const setBottom = (v: number) => {
+    const b = Math.max(v, top + MIN_SIZE);
+    onChange({ h: b - top });
+  };
+
+  return (
+    <>
+      <PanelSectionRow>
+        <SliderField
+          label={`${label}: left edge`}
+          value={pct(left)}
+          min={0} max={95} step={1} showValue
+          onChange={(v) => setLeft(v / 100)}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <SliderField
+          label={`${label}: right edge`}
+          value={pct(right)}
+          min={5} max={100} step={1} showValue
+          onChange={(v) => setRight(v / 100)}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <SliderField
+          label={`${label}: top edge`}
+          value={pct(top)}
+          min={0} max={95} step={1} showValue
+          onChange={(v) => setTop(v / 100)}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <SliderField
+          label={`${label}: bottom edge`}
+          value={pct(bottom)}
+          min={5} max={100} step={1} showValue
+          onChange={(v) => setBottom(v / 100)}
+        />
+      </PanelSectionRow>
+    </>
+  );
+};
 
 export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
@@ -70,12 +146,22 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
   };
 
   const region: Region = settings?.region ?? { x: 0.03, y: 0.62, w: 0.94, h: 0.36 };
-  const setRegion = (part: Partial<Region>) => {
-    const next = { ...region, ...part };
-    // draw the region over the game while sliding (auto-hides after 2.5s)
-    overlayState.showRegionPreview(next);
-    update("region", next);
-  };
+  const regionAlt: Region = settings?.region_alt ?? { x: 0.1, y: 0.08, w: 0.8, h: 0.84 };
+  const buttonMap: Record<string, string> =
+    settings?.button_map && typeof settings.button_map === "object"
+      ? settings.button_map
+      : { L5: "box" };
+  const altInUse = Object.values(buttonMap).includes("alt");
+
+  const setRegionKey = (key: "region" | "region_alt", base: Region) =>
+    (part: Partial<Region>) => {
+      const next = { ...base, ...part };
+      // draw the region over the game while sliding (auto-hides after 2.5s)
+      overlayState.showRegionPreview(next);
+      update(key, next);
+    };
+  const setRegion = setRegionKey("region", region);
+  const setRegionAlt = setRegionKey("region_alt", regionAlt);
 
   if (!settings) {
     return (
@@ -184,14 +270,18 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
       )}
 
       <PanelSection title="Trigger">
-        <PanelSectionRow>
-          <DropdownItem
-            label="Capture button"
-            rgOptions={TRIGGER_OPTIONS}
-            selectedOption={settings.trigger_button}
-            onChange={(o) => update("trigger_button", o.data)}
-          />
-        </PanelSectionRow>
+        {TRIGGER_BUTTONS.map((b) => (
+          <PanelSectionRow key={b}>
+            <DropdownItem
+              label={`${b} captures`}
+              rgOptions={BUTTON_MODE_OPTIONS}
+              selectedOption={buttonMap[b] ?? "off"}
+              onChange={(o) =>
+                update("button_map", { ...buttonMap, [b]: o.data })
+              }
+            />
+          </PanelSectionRow>
+        ))}
         <PanelSectionRow>
           <SliderField
             label="Hold time (ms)"
@@ -241,38 +331,10 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
             onChange={(v) => update("strip_speaker_name", v)}
           />
         </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Region: left edge %"
-            value={Math.round(region.x * 100)}
-            min={0} max={80} step={1} showValue
-            onChange={(v) => setRegion({ x: v / 100 })}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Region: top edge %"
-            value={Math.round(region.y * 100)}
-            min={0} max={90} step={1} showValue
-            onChange={(v) => setRegion({ y: v / 100 })}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Region: width %"
-            value={Math.round(region.w * 100)}
-            min={10} max={100} step={1} showValue
-            onChange={(v) => setRegion({ w: v / 100 })}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Region: height %"
-            value={Math.round(region.h * 100)}
-            min={5} max={100} step={1} showValue
-            onChange={(v) => setRegion({ h: v / 100 })}
-          />
-        </PanelSectionRow>
+        <RegionSliders label="Text box region" region={region} onChange={setRegion} />
+        {altInUse && (
+          <RegionSliders label="Alt region" region={regionAlt} onChange={setRegionAlt} />
+        )}
       </PanelSection>
 
       <PanelSection title="Anki">

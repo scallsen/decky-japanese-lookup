@@ -10,26 +10,30 @@ import { FaBookOpen } from "react-icons/fa";
 
 import { captureAndMine, getAllSettings, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
-import { TriggerWatcher, TriggerButton } from "./input";
+import { ButtonMap, TriggerWatcher } from "./input";
 import { OverlayState, VnLookupOverlay } from "./Overlay";
 import { Panel } from "./Panel";
 
 export default definePlugin(() => {
   const overlayState = new OverlayState();
 
-  const watcher = new TriggerWatcher(() => {
+  const watcher = new TriggerWatcher((mode) => {
     // The hidraw monitor sees the button even inside Steam menus/QAM, and
     // the capture grabs whatever gamescope composites — so only fire while
     // a game is actually running to avoid OCRing the Steam UI.
     if (!Router.MainRunningApp) return;
-    void captureAndMine().catch((e) => {
+    void captureAndMine(mode).catch((e) => {
       toaster.toast({ title: "VN Lookup", body: `capture failed: ${e}` });
     });
   });
 
   const applySettings = (s: Record<string, any>) => {
+    const map: ButtonMap =
+      s.button_map && typeof s.button_map === "object"
+        ? s.button_map
+        : { [(s.trigger_button as string) ?? "L5"]: "box" };
     watcher.configure(
-      (s.trigger_button as TriggerButton) ?? "L5",
+      map,
       typeof s.trigger_hold_ms === "number" ? s.trigger_hold_ms : 250
     );
   };
