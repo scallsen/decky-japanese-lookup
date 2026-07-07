@@ -3,6 +3,7 @@ import {
   addEventListener,
   removeEventListener,
   definePlugin,
+  routerHook,
   toaster,
 } from "@decky/api";
 import { FaBookOpen } from "react-icons/fa";
@@ -11,6 +12,7 @@ import { captureAndMine, getAllSettings, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
 import { TriggerButton, TriggerWatcher } from "./input";
 import { Panel } from "./Panel";
+import { ScanOverlay } from "./ScanOverlay";
 
 export default definePlugin(() => {
   const watcher = new TriggerWatcher((button) => {
@@ -66,8 +68,8 @@ export default definePlugin(() => {
       }
       Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
     }
-    // there's no more in-game overlay to show capture errors — a toast is
-    // the only surviving feedback for a failed capture
+    // a failed capture has no result to show in the sidebar, so a toast is
+    // the only feedback for it
     if (ev.stage === "error" && ev.message) {
       toaster.toast({ title: "VN Lookup", body: ev.message });
     }
@@ -76,6 +78,8 @@ export default definePlugin(() => {
 
   const onSettings = (s: Record<string, any>) => applySettings(s);
   addEventListener<[Record<string, any>]>("vnl_settings", onSettings);
+
+  routerHook.addGlobalComponent("VnLookupScanOverlay", () => <ScanOverlay />);
 
   return {
     name: "VN Lookup",
@@ -87,6 +91,7 @@ export default definePlugin(() => {
       watcher.stop();
       removeEventListener("vnl_event", onEvent);
       removeEventListener("vnl_settings", onSettings);
+      routerHook.removeGlobalComponent("VnLookupScanOverlay");
     },
   };
 });

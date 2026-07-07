@@ -13,6 +13,7 @@ export interface VnlEvent {
   note_id?: number;
   picture?: boolean;
   sentence?: boolean;
+  region?: Region | null;
 }
 
 export interface PluginStatus {

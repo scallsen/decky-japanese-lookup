@@ -125,8 +125,7 @@ class Plugin:
         full_png = os.path.join(CAPTURES_DIR, f"capture_{ts}.png")
         crop_png = os.path.join(CAPTURES_DIR, f"crop_{ts}.png")
 
-        # 1. capture — the "capturing" event HIDES the overlay (it would be
-        # photographed otherwise); give the compositor a beat to remove it
+        # 1. capture — give the compositor a beat before grabbing the frame
         await self._emit("capturing")
         await asyncio.sleep(0.15)
         try:
@@ -147,14 +146,16 @@ class Plugin:
                 await self._emit("error", message=f"Capture failed: {e}")
                 return {"ok": False, "error": str(e)}
 
-        # 2. OCR — the trigger button picks which capture area gets cropped
-        await self._emit("ocr")
+        # 2. OCR — the trigger button picks which capture area gets cropped.
+        # region rides along on the "ocr" event so the frontend can outline
+        # the area actively being scanned, directly over the running game.
         backend_name = self.settings.get("ocr_backend")
         area = next(
             (a for a in (self.settings.get("capture_areas") or [])
              if a.get("button") == button),
             None)
         region = area["region"] if area else None
+        await self._emit("ocr", region=region)
 
         runtime_ok = self.installer.is_installed()
         cloud_full_frame = False
