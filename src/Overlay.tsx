@@ -4,7 +4,7 @@
 
 import { findModuleChild } from "@decky/ui";
 import { FC, ReactNode, useEffect, useState } from "react";
-import type { Region, VnlEvent } from "./api";
+import type { VnlEvent } from "./api";
 
 enum UIComposition {
   Hidden = 0,
@@ -45,7 +45,6 @@ export interface OverlayModel {
   warning?: string | null;
   confidence?: number;
   clients?: number;
-  previewRegion?: Region | null;
 }
 
 type Listener = (model: OverlayModel) => void;
@@ -54,7 +53,6 @@ export class OverlayState {
   private model: OverlayModel = { visible: false, stage: "" };
   private listeners = new Set<Listener>();
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
-  private previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
@@ -71,15 +69,6 @@ export class OverlayState {
     if (this.hideTimer) clearTimeout(this.hideTimer);
     this.hideTimer = setTimeout(
       () => this.set({ ...this.model, visible: false }), ms);
-  }
-
-  // Show the capture region as a rectangle over the game while the user
-  // drags the sliders; auto-hides shortly after the last adjustment.
-  showRegionPreview(region: Region) {
-    if (this.previewTimer) clearTimeout(this.previewTimer);
-    this.set({ ...this.model, previewRegion: region });
-    this.previewTimer = setTimeout(
-      () => this.set({ ...this.model, previewRegion: null }), 2500);
   }
 
   handleEvent(ev: VnlEvent) {
@@ -121,7 +110,7 @@ export const VnLookupOverlay: FC<{ state: OverlayState }> = ({ state }) => {
 
   useEffect(() => state.subscribe(setModel), [state]);
 
-  if (!model.visible && !model.previewRegion) return null;
+  if (!model.visible) return null;
 
   const isError = model.stage === "error";
   const border = isError ? "#c0392b" : model.warning ? "#c87f0a" : "#2c6e49";
@@ -170,42 +159,9 @@ export const VnLookupOverlay: FC<{ state: OverlayState }> = ({ state }) => {
       );
   }
 
-  const preview = model.previewRegion;
-
   return (
     <>
       <CompositionRequest level={UIComposition.Notification} />
-      {preview && (
-        <div
-          style={{
-            position: "fixed",
-            left: `${preview.x * 100}vw`,
-            top: `${preview.y * 100}vh`,
-            width: `${preview.w * 100}vw`,
-            height: `${preview.h * 100}vh`,
-            zIndex: 7001,
-            border: "3px dashed #4fc3f7",
-            background: "rgba(79, 195, 247, 0.12)",
-            boxSizing: "border-box",
-            pointerEvents: "none",
-          }}
-        >
-          <span
-            style={{
-              position: "absolute",
-              top: 2,
-              left: 6,
-              color: "#4fc3f7",
-              fontSize: 13,
-              fontWeight: 600,
-              textShadow: "0 0 4px #000",
-            }}
-          >
-            OCR region
-          </span>
-        </div>
-      )}
-      {model.visible && (
       <div
         style={{
           // top of the screen: VN text boxes (and the capture region) live
@@ -228,7 +184,6 @@ export const VnLookupOverlay: FC<{ state: OverlayState }> = ({ state }) => {
       >
         {body}
       </div>
-      )}
     </>
   );
 };

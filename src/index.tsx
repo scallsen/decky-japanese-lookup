@@ -84,7 +84,7 @@ export default definePlugin(() => {
   return {
     name: "VN Lookup",
     titleView: <div className={staticClasses.Title}>VN Lookup</div>,
-    content: <Panel overlayState={overlayState} />,
+    content: <Panel />,
     icon: <FaBookOpen />,
     alwaysRender: true,
     onDismount() {
