@@ -21,14 +21,22 @@ import {
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
 
-const TRIGGER_BUTTONS = ["L4", "R4", "L5", "R5"];
+interface CaptureArea {
+  region: Region;
+  button: string | null;
+}
 
-const BUTTON_MODE_OPTIONS = [
-  { data: "off", label: "Disabled" },
-  { data: "box", label: "Text box region" },
-  { data: "alt", label: "Alt region" },
-  { data: "fullscreen", label: "Full screen" },
+const TRIGGER_OPTIONS = [
+  { data: "off", label: "Off" },
+  { data: "L4", label: "L4" },
+  { data: "R4", label: "R4" },
+  { data: "L5", label: "L5" },
+  { data: "R5", label: "R5" },
 ];
+
+// shape for newly-added areas — the default area already covers the usual
+// bottom-third text box, so a second one probably wants more of the screen
+const NEW_AREA_REGION: Region = { x: 0.1, y: 0.08, w: 0.8, h: 0.84 };
 
 const BACKEND_OPTIONS = [
   { data: "rapidocr", label: "Local (RapidOCR, offline)" },
@@ -107,14 +115,29 @@ export const Panel: FC = () => {
     void setSetting(key, value);
   };
 
-  const region: Region = settings?.region ?? { x: 0.03, y: 0.62, w: 0.94, h: 0.36 };
-  const regionAlt: Region = settings?.region_alt ?? { x: 0.1, y: 0.08, w: 0.8, h: 0.84 };
-  const buttonMap: Record<string, string> =
-    settings?.button_map && typeof settings.button_map === "object"
-      ? settings.button_map
-      : { L5: "box" };
-  const altInUse = Object.values(buttonMap).includes("alt");
-  const boxInUse = Object.values(buttonMap).includes("box");
+  const areas: CaptureArea[] =
+    Array.isArray(settings?.capture_areas) && settings.capture_areas.length > 0
+      ? settings.capture_areas
+      : [{ region: { x: 0.03, y: 0.62, w: 0.94, h: 0.36 }, button: "L5" }];
+
+  const updateAreas = (next: CaptureArea[]) => update("capture_areas", next);
+
+  const setAreaButton = (i: number, button: string) => {
+    const next = areas.map((a, idx) => {
+      if (idx === i) return { ...a, button: button === "off" ? null : button };
+      // a physical button can only trigger one area — clear it elsewhere
+      return a.button === button && button !== "off" ? { ...a, button: null } : a;
+    });
+    updateAreas(next);
+  };
+
+  const setAreaRegion = (i: number, region: Region) => {
+    updateAreas(areas.map((a, idx) => (idx === i ? { ...a, region } : a)));
+  };
+
+  const addArea = () => updateAreas([...areas, { region: NEW_AREA_REGION, button: null }]);
+
+  const deleteArea = (i: number) => updateAreas(areas.filter((_, idx) => idx !== i));
 
   if (!settings) {
     return (
@@ -176,40 +199,47 @@ export const Panel: FC = () => {
         </PanelSection>
       )}
 
-      <PanelSection title="Trigger">
-        {TRIGGER_BUTTONS.map((b) => (
-          <PanelSectionRow key={b}>
-            <DropdownItem
-              icon={<TriggerBadge button={b} />}
-              label={b}
-              rgOptions={BUTTON_MODE_OPTIONS}
-              selectedOption={buttonMap[b] ?? "off"}
-              onChange={(o) =>
-                update("button_map", { ...buttonMap, [b]: o.data })
-              }
-            />
-          </PanelSectionRow>
+      <PanelSection title="Capture area">
+        {areas.map((area, i) => (
+          <div key={i}>
+            <PanelSectionRow>
+              <DropdownItem
+                icon={area.button ? <TriggerBadge button={area.button} /> : undefined}
+                label={i === 0 ? "Default" : `Area ${i + 1}`}
+                description="Trigger button"
+                rgOptions={TRIGGER_OPTIONS}
+                selectedOption={area.button ?? "off"}
+                onChange={(o) => setAreaButton(i, o.data)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                onClick={() =>
+                  openRegionEditor(
+                    i === 0 ? "Default capture area" : `Capture area ${i + 1}`,
+                    area.region,
+                    (r) => setAreaRegion(i, r)
+                  )
+                }
+              >
+                Set area…
+              </ButtonItem>
+            </PanelSectionRow>
+            {i > 0 && (
+              <PanelSectionRow>
+                <ButtonItem layout="below" onClick={() => deleteArea(i)}>
+                  Delete
+                </ButtonItem>
+              </PanelSectionRow>
+            )}
+          </div>
         ))}
-        {boxInUse && (
-          <PanelSectionRow>
-            <ButtonItem
-              layout="below"
-              onClick={() => openRegionEditor("Text box region", "region", region)}
-            >
-              Adjust text box region…
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
-        {altInUse && (
-          <PanelSectionRow>
-            <ButtonItem
-              layout="below"
-              onClick={() => openRegionEditor("Alt region", "region_alt", regionAlt)}
-            >
-              Adjust alt region…
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={addArea}>
+            Add capture area
+          </ButtonItem>
+        </PanelSectionRow>
         <PanelSectionRow>
           <SliderField
             label="Hold time (ms)"

@@ -19,7 +19,6 @@ import {
   detectRegion,
   getEditorFrame,
   Region,
-  setSetting,
 } from "./api";
 
 const MIN = 0.05;
@@ -42,8 +41,8 @@ const clampRegion = (r: Region): Region => {
 // latest pipeline capture when fresh capture fails (e.g. no game running).
 export const openRegionEditor = (
   title: string,
-  settingKey: "region" | "region_alt",
-  initial: Region
+  initial: Region,
+  onSave: (region: Region) => void
 ) => {
   Navigation.CloseSideMenus();
   setTimeout(async () => {
@@ -63,7 +62,7 @@ export const openRegionEditor = (
     showModal(
       <RegionEditorModal
         title={title}
-        settingKey={settingKey}
+        onSave={onSave}
         initial={initial}
         initialImage={image}
         initialMessage={msg}
@@ -92,12 +91,12 @@ const handleStyle = (corner: string): CSSProperties => ({
 
 export const RegionEditorModal: FC<{
   title: string;
-  settingKey: "region" | "region_alt";
+  onSave: (region: Region) => void;
   initial: Region;
   initialImage?: string;
   initialMessage?: string;
   closeModal?: () => void;
-}> = ({ title, settingKey, initial, initialImage, initialMessage, closeModal }) => {
+}> = ({ title, onSave, initial, initialImage, initialMessage, closeModal }) => {
   const [region, setRegion] = useState<Region>(initial);
   const [image, setImage] = useState<string | null>(initialImage ?? null);
   const [message, setMessage] = useState(
@@ -179,7 +178,7 @@ export const RegionEditorModal: FC<{
   };
 
   const save = () => {
-    void setSetting(settingKey, region);
+    onSave(region);
     closeModal?.();
   };
 

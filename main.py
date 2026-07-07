@@ -31,14 +31,29 @@ SETTINGS_DIR = decky.DECKY_PLUGIN_SETTINGS_DIR
 PLUGIN_DIR = decky.DECKY_PLUGIN_DIR
 CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
 
+# fallback shapes used only by the one-time capture_areas migration below
+# and as the starting point for newly-added areas
+_LEGACY_REGION = {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36}
+_LEGACY_REGION_ALT = {"x": 0.1, "y": 0.08, "w": 0.8, "h": 0.84}
+
 
 class Plugin:
     async def _main(self):
         self.settings = Settings(SETTINGS_DIR)
-        if not self.settings.get("button_map"):
-            # migrate from the single-trigger era: old button keeps the box
-            legacy = self.settings.get("trigger_button") or "L5"
-            self.settings.set("button_map", {legacy: "box"})
+        if not self.settings.get("capture_areas"):
+            # migrate from the region/region_alt/button_map (or even older
+            # single trigger_button) era into the capture_areas list
+            legacy_map = self.settings.get("button_map")
+            if not legacy_map:
+                legacy_map = {self.settings.get("trigger_button") or "L5": "box"}
+            region = self.settings.get("region") or _LEGACY_REGION
+            region_alt = self.settings.get("region_alt") or _LEGACY_REGION_ALT
+            areas = [
+                {"region": region if mode == "box" else region_alt, "button": button}
+                for button, mode in legacy_map.items()
+                if mode in ("box", "alt")
+            ]
+            self.settings.set("capture_areas", areas or [{"region": region, "button": None}])
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
@@ -96,16 +111,16 @@ class Plugin:
 
     # ---- the pipeline ----------------------------------------------------
 
-    async def capture_and_mine(self, mode: str = "box"):
+    async def capture_and_mine(self, button: str | None = None):
         if self._busy:
             return {"ok": False, "error": "capture already in progress"}
         self._busy = True
         try:
-            return await self._run_pipeline(mode)
+            return await self._run_pipeline(button)
         finally:
             self._busy = False
 
-    async def _run_pipeline(self, mode: str = "box"):
+    async def _run_pipeline(self, button: str | None = None):
         ts = int(time.time() * 1000)
         full_png = os.path.join(CAPTURES_DIR, f"capture_{ts}.png")
         crop_png = os.path.join(CAPTURES_DIR, f"crop_{ts}.png")
@@ -132,17 +147,14 @@ class Plugin:
                 await self._emit("error", message=f"Capture failed: {e}")
                 return {"ok": False, "error": str(e)}
 
-        # 2. OCR — the trigger button picks which layout gets cropped
+        # 2. OCR — the trigger button picks which capture area gets cropped
         await self._emit("ocr")
         backend_name = self.settings.get("ocr_backend")
-        if mode == "fullscreen":
-            region = None
-        elif mode == "alt":
-            region = self.settings.get("region_alt")
-        elif self.settings.get("capture_mode") == "region":
-            region = self.settings.get("region")
-        else:
-            region = None
+        area = next(
+            (a for a in (self.settings.get("capture_areas") or [])
+             if a.get("button") == button),
+            None)
+        region = area["region"] if area else None
 
         runtime_ok = self.installer.is_installed()
         cloud_full_frame = False
