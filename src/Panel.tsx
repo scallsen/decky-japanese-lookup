@@ -9,6 +9,7 @@ import {
   TextField,
   ToggleField,
 } from "@decky/ui";
+import { addEventListener, removeEventListener } from "@decky/api";
 import { FC, useEffect, useRef, useState } from "react";
 import {
   downloadModels,
@@ -19,6 +20,7 @@ import {
   PluginStatus,
   Region,
   setSetting,
+  VnlEvent,
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
@@ -88,6 +90,7 @@ export const Panel: FC = () => {
   const [busyMsg, setBusyMsg] = useState("");
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
+  const topRef = useRef<HTMLDivElement>(null);
 
   const refreshStatus = async () => {
     try {
@@ -115,6 +118,19 @@ export const Panel: FC = () => {
       alive.current = false;
       clearInterval(t);
     };
+  }, []);
+
+  // the QAM auto-opens on this same event (see index.tsx) — scroll back to
+  // the top so the fresh sentence is visible even if the panel was scrolled
+  // down into Anki/Advanced settings when it was last closed
+  useEffect(() => {
+    const onEvent = (ev: VnlEvent) => {
+      if (ev.stage === "done" && ev.auto_open_qam) {
+        topRef.current?.scrollIntoView({ block: "start" });
+      }
+    };
+    addEventListener<[VnlEvent]>("vnl_event", onEvent);
+    return () => removeEventListener("vnl_event", onEvent);
   }, []);
 
   const update = (key: string, value: any) => {
@@ -160,9 +176,10 @@ export const Panel: FC = () => {
   const setupDone = !!runtime?.installed && !!models?.installed;
 
   return (
-    <>
+    <div ref={topRef}>
       <LookupSection
         sentence={status?.last_result?.text ?? null}
+        confidence={status?.last_result?.confidence ?? null}
         ankiEnabled={!!settings.anki_enabled}
       />
 
@@ -434,6 +451,6 @@ export const Panel: FC = () => {
           </div>
         </PanelSectionRow>
       </PanelSection>
-    </>
+    </div>
   );
 };

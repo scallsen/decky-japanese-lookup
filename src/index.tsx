@@ -3,7 +3,6 @@ import {
   addEventListener,
   removeEventListener,
   definePlugin,
-  routerHook,
   toaster,
 } from "@decky/api";
 import { FaBookOpen } from "react-icons/fa";
@@ -11,12 +10,9 @@ import { FaBookOpen } from "react-icons/fa";
 import { captureAndMine, getAllSettings, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
 import { TriggerButton, TriggerWatcher } from "./input";
-import { OverlayState, VnLookupOverlay } from "./Overlay";
 import { Panel } from "./Panel";
 
 export default definePlugin(() => {
-  const overlayState = new OverlayState();
-
   const watcher = new TriggerWatcher((button) => {
     // The hidraw monitor sees the button even inside Steam menus/QAM, and
     // the capture grabs whatever gamescope composites — so only fire while
@@ -70,16 +66,16 @@ export default definePlugin(() => {
       }
       Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
     }
-    overlayState.handleEvent(ev);
+    // there's no more in-game overlay to show capture errors — a toast is
+    // the only surviving feedback for a failed capture
+    if (ev.stage === "error" && ev.message) {
+      toaster.toast({ title: "VN Lookup", body: ev.message });
+    }
   };
   addEventListener<[VnlEvent]>("vnl_event", onEvent);
 
   const onSettings = (s: Record<string, any>) => applySettings(s);
   addEventListener<[Record<string, any>]>("vnl_settings", onSettings);
-
-  routerHook.addGlobalComponent("VnLookupOverlay", () => (
-    <VnLookupOverlay state={overlayState} />
-  ));
 
   return {
     name: "VN Lookup",
@@ -91,7 +87,6 @@ export default definePlugin(() => {
       watcher.stop();
       removeEventListener("vnl_event", onEvent);
       removeEventListener("vnl_settings", onSettings);
-      routerHook.removeGlobalComponent("VnLookupOverlay");
     },
   };
 });

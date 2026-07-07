@@ -210,7 +210,11 @@ class Plugin:
             raw_text, remove_speaker=bool(self.settings.get("strip_speaker_name")))
 
         if not cleaned:
-            # total OCR miss: nothing detected in the region
+            # total OCR miss: nothing detected in the region. Still record
+            # this as the last result (empty text) so the polled sidebar
+            # can show a "no text found" notice instead of a stale sentence
+            self._last_result = {
+                "text": "", "raw": raw_text, "confidence": round(confidence, 3)}
             msg = "No text detected in the capture region"
             await self._emit("error", message=msg, raw=raw_text)
             return {"ok": False, "error": msg, "raw": raw_text}

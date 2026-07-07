@@ -30,6 +30,10 @@ const GRAMMAR_POS = new Set(["助詞", "助動詞"]);
 const isContentWord = (t: Token) =>
   t.selectable && !GRAMMAR_POS.has(t.pos);
 
+// below this, the OCR read is shaky enough to flag — not a hard science,
+// just a heads-up that the capture area/game text might need a look
+const LOW_CONFIDENCE_THRESHOLD = 0.6;
+
 // Yomitan-style scan: candidate lookup keys from the tapped token outward,
 // longest first. For each window, try the raw surface and the surface with
 // the last token in dictionary form (気になっ… → 気になる). The backend
@@ -52,10 +56,11 @@ const candidatesAt = (tokens: Token[], i: number): string[] => {
   return [...new Set(cands.filter(Boolean))];
 };
 
-export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }> = ({
-  sentence,
-  ankiEnabled,
-}) => {
+export const LookupSection: FC<{
+  sentence: string | null;
+  confidence: number | null;
+  ankiEnabled: boolean;
+}> = ({ sentence, confidence, ankiEnabled }) => {
   const [status, setStatus] = useState<LookupStatus | null>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [sel, setSel] = useState<[number, number] | null>(null); // token index range
@@ -237,10 +242,17 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
 
   return (
     <PanelSection title="Lookup">
-      {!sentence ? (
+      {sentence === null ? (
         <PanelSectionRow>
           <div style={{ fontSize: 12, opacity: 0.7 }}>
             Capture a sentence first, then analyze here.
+          </div>
+        </PanelSectionRow>
+      ) : sentence === "" ? (
+        <PanelSectionRow>
+          <div style={{ fontSize: 12, color: "#e0a04f" }}>
+            No text found – check capture area, or image quality may be too
+            low to scan
           </div>
         </PanelSectionRow>
       ) : (
@@ -315,6 +327,14 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
               })}
             </Focusable>
           </PanelSectionRow>
+
+          {typeof confidence === "number" && confidence < LOW_CONFIDENCE_THRESHOLD && (
+            <PanelSectionRow>
+              <div style={{ fontSize: 12, color: "#e0a04f" }}>
+                Accuracy low – check capture area
+              </div>
+            </PanelSectionRow>
+          )}
 
           {message ? (
             <PanelSectionRow>
