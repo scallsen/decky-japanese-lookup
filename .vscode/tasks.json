@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "pnpmsetup",
+            "type": "shell",
+            "group": "none",
+            "detail": "Install node deps",
+            "command": "which pnpm && pnpm i",
+            "problemMatcher": []
+        },
+        {
+            "label": "settingscheck",
+            "type": "shell",
+            "group": "none",
+            "detail": "Create .vscode/settings.json from defaults if missing",
+            "command": "${workspaceFolder}/.vscode/config.sh",
+            "problemMatcher": []
+        },
+        {
+            "label": "build",
+            "group": "build",
+            "type": "shell",
+            "detail": "Build frontend bundle (rollup)",
+            "command": "pnpm build",
+            "problemMatcher": []
+        },
+        {
+            "label": "deploy",
+            "type": "shell",
+            "group": "none",
+            "detail": "Build + rsync plugin to Deck + restart Decky",
+            "command": "${workspaceFolder}/deploy.sh",
+            "problemMatcher": []
+        },
+        {
+            "label": "deploy-only",
+            "type": "shell",
+            "group": "none",
+            "detail": "Rsync + restart without rebuilding the frontend",
+            "command": "${workspaceFolder}/deploy.sh --no-build",
+            "problemMatcher": []
+        },
+        {
+            "label": "decky-log",
+            "type": "shell",
+            "group": "none",
+            "detail": "Tail the plugin's backend log on the Deck",
+            "command": "ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'tail -f -n 100 /home/deck/homebrew/logs/vn-lookup/*'",
+            "problemMatcher": []
+        },
+        {
+            "label": "restartdecky",
+            "detail": "Restart Decky Loader on the Deck",
+            "type": "shell",
+            "group": "none",
+            "command": "ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'echo '${config:deckpass}' | sudo -S systemctl restart plugin_loader'",
+            "problemMatcher": []
+        }
+    ]
+}

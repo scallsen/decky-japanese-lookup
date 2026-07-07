@@ -1,0 +1,12 @@
+{
+    "deckip"    : "steamdeck.local",
+    "deckport"  : "22",
+    "deckuser"  : "deck",
+    "deckpass"  : "CHANGE_ME",
+    "deckkey"   : "-i ${env:HOME}/.ssh/id_ed25519",
+    "deckdir"   : "/home/deck",
+    "pluginname": "VN Lookup",
+    "python.analysis.extraPaths": [
+        "./py_modules"
+    ]
+}
