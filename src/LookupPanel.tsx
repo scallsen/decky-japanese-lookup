@@ -256,7 +256,7 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
                 fontFamily: '"Noto Sans CJK JP", "Hiragino Sans", sans-serif',
                 padding: entries !== null ? "2px 0 8px" : "2px 0",
                 borderBottom: entries !== null
-                  ? "1px solid rgba(255,255,255,0.15)"
+                  ? "1px solid rgba(255,255,255,0.1)"
                   : "none",
               }}
             >
