@@ -3,7 +3,6 @@ import {
   DialogButton,
   Dropdown,
   DropdownItem,
-  Field,
   PanelSection,
   PanelSectionRow,
   SliderField,
@@ -221,27 +220,25 @@ export const Panel: FC = () => {
               <AreaThumbnail region={area.region} />
             </PanelSectionRow>
             <PanelSectionRow>
-              <Field label={i === 0 ? "Default" : `Area ${i + 1}`} childrenLayout="inline">
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <DialogButton
-                    style={{ width: "fit-content", minWidth: 0, padding: "4px 10px", fontSize: 13 }}
-                    onClick={() =>
-                      openRegionEditor(
-                        i === 0 ? "Default capture area" : `Capture area ${i + 1}`,
-                        area.region,
-                        (r) => setAreaRegion(i, r)
-                      )
-                    }
-                  >
-                    Change area
-                  </DialogButton>
-                  <Dropdown
-                    rgOptions={TRIGGER_OPTIONS}
-                    selectedOption={area.button ?? "off"}
-                    onChange={(o) => setAreaButton(i, o.data)}
-                  />
-                </div>
-              </Field>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <DialogButton
+                  style={{ flex: 1, minWidth: 0, padding: "4px 10px", fontSize: 13 }}
+                  onClick={() =>
+                    openRegionEditor(
+                      i === 0 ? "Default capture area" : `Capture area ${i + 1}`,
+                      area.region,
+                      (r) => setAreaRegion(i, r)
+                    )
+                  }
+                >
+                  Change area
+                </DialogButton>
+                <Dropdown
+                  rgOptions={TRIGGER_OPTIONS}
+                  selectedOption={area.button ?? "off"}
+                  onChange={(o) => setAreaButton(i, o.data)}
+                />
+              </div>
             </PanelSectionRow>
             {i > 0 && (
               <PanelSectionRow>
