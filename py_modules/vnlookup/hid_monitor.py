@@ -95,7 +95,7 @@ class HidrawButtonMonitor:
                 continue
             uevent_path = f'/sys/class/hidraw/hidraw{i}/device/uevent'
             try:
-                with open(uevent_path, 'r') as f:
+                with open(uevent_path) as f:
                     content = f.read().upper()
                 if '28DE' not in content:
                     continue
@@ -118,7 +118,7 @@ class HidrawButtonMonitor:
                 except Exception:
                     pass
             # Fallback: any candidate that has data waiting
-            for i, path in steamdeck_candidates:
+            for _i, path in steamdeck_candidates:
                 try:
                     fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
                     try:
@@ -216,10 +216,10 @@ class HidrawButtonMonitor:
         max_errors = 10
         while self.running:
             try:
-                if not self.initialized or self.device_fd is None:
-                    if not self.initialize_device():
-                        time.sleep(reconnect_delay)
-                        continue
+                if ((not self.initialized or self.device_fd is None)
+                        and not self.initialize_device()):
+                    time.sleep(reconnect_delay)
+                    continue
                 r, _, _ = select.select([self.device_fd], [], [], 0.1)
                 if not r:
                     continue

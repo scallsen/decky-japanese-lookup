@@ -250,7 +250,7 @@ class Dictionary:
                     index = json.loads(zf.read("index.json"))
                 except KeyError:
                     raise RuntimeError(f"{name}: not a Yomitan dictionary "
-                                       "(no index.json)")
+                                       "(no index.json)") from None
                 title = index.get("title") or name
                 revision = index.get("revision", "")
 

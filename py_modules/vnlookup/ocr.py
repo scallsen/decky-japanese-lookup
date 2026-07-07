@@ -78,10 +78,10 @@ async def _run_worker(venv_python, args, stdin_bytes=None, timeout=OCR_TIMEOUT,
     try:
         out, err = await asyncio.wait_for(
             proc.communicate(input=stdin_bytes), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError as e:
         proc.kill()
         await proc.communicate()
-        raise OCRError(f"OCR worker timed out after {timeout}s")
+        raise OCRError(f"OCR worker timed out after {timeout}s") from e
     if not out.strip():
         tail = err.decode(errors="replace").strip()[-400:]
         raise OCRError(f"OCR worker produced no output: {tail or 'no stderr'}")
@@ -90,8 +90,8 @@ async def _run_worker(venv_python, args, stdin_bytes=None, timeout=OCR_TIMEOUT,
     last_line = out.strip().splitlines()[-1]
     try:
         return json.loads(last_line)
-    except json.JSONDecodeError:
-        raise OCRError(f"OCR worker output not JSON: {last_line[:200]!r}")
+    except json.JSONDecodeError as e:
+        raise OCRError(f"OCR worker output not JSON: {last_line[:200]!r}") from e
 
 
 class RapidOCRBackend:
@@ -206,18 +206,18 @@ class GeminiBackend:
             except Exception:
                 pass
             if e.code in (401, 403):
-                raise OCRError(f"Gemini API key rejected: {detail or e.code}")
+                raise OCRError(f"Gemini API key rejected: {detail or e.code}") from e
             if e.code == 429:
-                raise OCRError("Gemini rate limit hit — try again shortly")
-            raise OCRError(f"Gemini API error {e.code}: {detail}")
+                raise OCRError("Gemini rate limit hit — try again shortly") from e
+            raise OCRError(f"Gemini API error {e.code}: {detail}") from e
         except urllib.error.URLError as e:
-            raise OCRError(f"Network error reaching Gemini: {e.reason}")
+            raise OCRError(f"Network error reaching Gemini: {e.reason}") from e
 
         try:
             payload = data["candidates"][0]["content"]["parts"][0]["text"]
             text = json.loads(payload)["text"].strip()
         except (KeyError, IndexError, json.JSONDecodeError) as e:
-            raise OCRError(f"Unexpected Gemini response shape: {e}")
+            raise OCRError(f"Unexpected Gemini response shape: {e}") from e
 
         regions = []
         if text:
