@@ -254,7 +254,10 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
                 fontSize: 19,
                 lineHeight: 1.7,
                 fontFamily: '"Noto Sans CJK JP", "Hiragino Sans", sans-serif',
-                padding: "2px 0",
+                padding: entries !== null ? "2px 0 8px" : "2px 0",
+                borderBottom: entries !== null
+                  ? "1px solid rgba(255,255,255,0.15)"
+                  : "none",
               }}
             >
               {tokens.map((t, i) => {
