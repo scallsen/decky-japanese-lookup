@@ -339,10 +339,14 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
                   padding: "6px 2px",
                   borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
                 }}
+                tabIndex={0}
+                onActivate={ankiEnabled ? () => void addCard(e) : undefined}
+                onOKActionDescription={ankiEnabled ? "Create Anki card" : undefined}
               >
-                {/* button lives in the header so gamepad focus (and the
-                    scroll-to-focus it triggers) lands at the TOP of the
-                    entry — the definition unfolds below, never above */}
+                {/* the entry itself is the gamepad-focus/scroll-into-view
+                    target (tabIndex here, not just on the +Anki button) so
+                    landing on an entry and D-pad-down to the next one both
+                    work even when Anki is disabled and no button renders */}
                 <div
                   style={{
                     display: "flex",
@@ -385,8 +389,8 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
                         fontSize: 13,
                         flexShrink: 0,
                       }}
+                      focusable={false}
                       onClick={() => void addCard(e)}
-                      onOKActionDescription="Create Anki card"
                     >
                       + Anki
                     </DialogButton>
