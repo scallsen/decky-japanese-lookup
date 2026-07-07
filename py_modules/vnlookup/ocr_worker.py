@@ -105,7 +105,8 @@ def cmd_recognize(opts):
 
     regions = []
     if result and result.txts:
-        for box, text, confidence in zip(result.boxes, result.txts, result.scores):
+        for box, text, confidence in zip(result.boxes, result.txts,
+                                         result.scores, strict=False):
             if not text or not text.strip():
                 continue
             if confidence < min_conf:

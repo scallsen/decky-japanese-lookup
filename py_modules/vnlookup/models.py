@@ -84,7 +84,7 @@ class ModelDownloader:
             shutil.rmtree(self._staging, ignore_errors=True)
             os.makedirs(self._staging, exist_ok=True)
             done_bytes = 0
-            for url, name, approx in MANIFEST:
+            for url, name, _approx in MANIFEST:
                 dest = os.path.join(self._staging, name)
                 logger.info(f"downloading {url}")
                 req = urllib.request.Request(url, headers={"User-Agent": "vn-lookup"})

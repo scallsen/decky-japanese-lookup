@@ -85,7 +85,7 @@ class DeliveryServer:
                     await asyncio.wait_for(ws.send_str(line), timeout=2)
                 async for _msg in ws:
                     pass  # clients only listen
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             finally:
                 self._clients.discard(ws)

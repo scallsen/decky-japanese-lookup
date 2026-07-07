@@ -53,7 +53,7 @@ class Settings:
 
     def load(self) -> None:
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
+            with open(self.path, encoding="utf-8") as f:
                 stored = json.load(f)
             # merge so new defaults appear after plugin updates; dict-valued
             # settings (region) merge per-key so a stale/partial stored dict

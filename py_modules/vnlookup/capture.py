@@ -171,12 +171,12 @@ class ScreenCapture:
                 stdout=PIPE, stderr=PIPE, env=env)
             try:
                 _, err = await asyncio.wait_for(proc.communicate(), timeout=GST_TIMEOUT)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 with contextlib.suppress(ProcessLookupError):
                     proc.send_signal(signal.SIGINT)
                 try:
                     _, err = await asyncio.wait_for(proc.communicate(), timeout=1)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     with contextlib.suppress(ProcessLookupError):
                         proc.kill()
                     _, err = await proc.communicate()
@@ -207,7 +207,7 @@ class ScreenCapture:
         w, h = self._source_dims
         expected = w * h * 3
 
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        for _attempt in range(1, MAX_ATTEMPTS + 1):
             # 5 buffers like the PNG path: the first pipewiresrc frames are
             # warmup garbage. We keep only the final frame from stdout.
             proc = await asyncio.create_subprocess_exec(
@@ -218,7 +218,7 @@ class ScreenCapture:
                 stdout=PIPE, stderr=PIPE, env=env)
             try:
                 out, err = await asyncio.wait_for(proc.communicate(), timeout=GST_TIMEOUT)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 with contextlib.suppress(ProcessLookupError):
                     proc.kill()
                 out, err = await proc.communicate()
