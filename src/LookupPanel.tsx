@@ -72,13 +72,7 @@ export const LookupSection: FC<{
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entriesRef = useRef<HTMLDivElement | null>(null);
   const wantFocusMove = useRef(false);
-  const firstWordRef = useRef<HTMLElement | null>(null);
-  // callback ref, not a plain object ref — the first word may render as
-  // either a DialogButton (div) or a plain span depending on its POS, and a
-  // callback typed for the wider HTMLElement is assignable to both
-  const setFirstWordRef = (el: HTMLElement | null) => {
-    firstWordRef.current = el;
-  };
+  const sectionRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = async () => {
     try {
@@ -117,13 +111,13 @@ export const LookupSection: FC<{
     });
   }, [sentence, status?.runtime_installed]);
 
-  // scroll the fresh sentence's first word into view once its chip actually
-  // renders — doing this off the capture event itself (rather than here)
-  // raced the async tokenize call above, scrolling before the new words (or
-  // the QAM) had actually rendered
+  // scroll back to the top of the Lookup section (title included) once the
+  // fresh sentence's words actually render — doing this off the capture
+  // event itself (rather than here) raced the async tokenize call above,
+  // scrolling before the new words (or the QAM) had actually rendered
   useEffect(() => {
     if (tokens.length > 0) {
-      firstWordRef.current?.scrollIntoView({ block: "start" });
+      sectionRef.current?.scrollIntoView({ block: "start" });
     }
   }, [tokens]);
 
@@ -258,208 +252,208 @@ export const LookupSection: FC<{
   // ---- main lookup UI ----------------------------------------------------
 
   return (
-    <PanelSection title="Lookup">
-      {sentence === null ? (
-        <PanelSectionRow>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Capture a sentence first, then analyze here.
-          </div>
-        </PanelSectionRow>
-      ) : sentence === "" ? (
-        <PanelSectionRow>
-          <div style={{ fontSize: 12, color: "#e0a04f" }}>
-            No text found – check capture area, or image quality may be too
-            low to scan
-          </div>
-        </PanelSectionRow>
-      ) : (
-        <>
+    <div ref={sectionRef}>
+      <PanelSection title="Lookup">
+        {sentence === null ? (
           <PanelSectionRow>
-            <Focusable
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "baseline",
-                fontSize: 19,
-                lineHeight: 1.7,
-                fontFamily: '"Noto Sans CJK JP", "Hiragino Sans", sans-serif',
-                padding: entries !== null ? "2px 0 8px" : "2px 0",
-                borderBottom: entries !== null
-                  ? "1px solid rgba(255,255,255,0.1)"
-                  : "none",
-              }}
-            >
-              {tokens.map((t, i) => {
-                const inSel = !!sel && i >= sel[0] && i <= sel[1];
-                const isFocused = focused === i;
-                // DialogButton = native gamepad focus. The width/minWidth
-                // overrides beat its default width:100% class so words sit
-                // side by side and wrap like a sentence. The transparent
-                // background also kills Steam's own focus highlight, so we
-                // paint our own from onGamepadFocus state.
-                return isContentWord(t) ? (
-                  <DialogButton
-                    key={i}
-                    ref={i === 0 ? setFirstWordRef : undefined}
-                    style={{
-                      width: "fit-content",
-                      minWidth: 0,
-                      margin: 0,
-                      padding: "0 2px",
-                      fontSize: 19,
-                      lineHeight: 1.7,
-                      background: isFocused
-                        ? "rgba(255,255,255,0.9)"
-                        : inSel
-                        ? "rgba(26,159,255,0.35)"
-                        : "transparent",
-                      color: isFocused ? "#111" : "#e8e8e8",
-                      borderRadius: 3,
-                      borderBottom: isFocused
-                        ? "2px solid transparent"
-                        : "2px dotted rgba(255,255,255,0.3)",
-                      boxShadow: "none",
-                      transition: "background 0.1s, color 0.1s",
-                    }}
-                    onClick={() => void doLookup(i, true)}
-                    onGamepadFocus={() => onWordFocus(i)}
-                    onGamepadBlur={() => onWordBlur(i)}
-                    onOKActionDescription="Look up"
-                  >
-                    {t.surface}
-                  </DialogButton>
-                ) : (
-                  <span
-                    key={i}
-                    ref={i === 0 ? setFirstWordRef : undefined}
-                    style={{
-                      opacity: t.selectable ? 0.75 : 0.55,
-                      background: inSel ? "rgba(26,159,255,0.35)" : undefined,
-                      borderRadius: 3,
-                      padding: "0 1px",
-                    }}
-                    onClick={t.selectable ? () => void doLookup(i, true) : undefined}
-                  >
-                    {t.surface}
-                  </span>
-                );
-              })}
-            </Focusable>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>
+              Capture a sentence first, then analyze here.
+            </div>
           </PanelSectionRow>
-
-          {typeof confidence === "number" && confidence < LOW_CONFIDENCE_THRESHOLD && (
+        ) : sentence === "" ? (
+          <PanelSectionRow>
+            <div style={{ fontSize: 12, color: "#e0a04f" }}>
+              No text found – check capture area, or image quality may be too
+              low to scan
+            </div>
+          </PanelSectionRow>
+        ) : (
+          <>
             <PanelSectionRow>
-              <div style={{ fontSize: 12, color: "#e0a04f" }}>
-                Accuracy low – check capture area
-              </div>
-            </PanelSectionRow>
-          )}
-
-          {message ? (
-            <PanelSectionRow>
-              <div style={{ fontSize: 12, color: "#dcae3c" }}>{message}</div>
-            </PanelSectionRow>
-          ) : null}
-
-          {entries !== null && entries.length === 0 && (
-            <PanelSectionRow>
-              <div style={{ fontSize: 12, color: "#e0a04f" }}>
-                No dictionary hits — the OCR may have misread a character
-                (the full line is also on the texthooker page in Firefox).
-              </div>
-            </PanelSectionRow>
-          )}
-
-          <div ref={entriesRef}>
-          {(entries ?? []).map((e, i) => (
-            <PanelSectionRow key={i}>
               <Focusable
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                  padding: "6px 2px",
-                  borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                  flexWrap: "wrap",
+                  alignItems: "baseline",
+                  fontSize: 19,
+                  lineHeight: 1.7,
+                  fontFamily: '"Noto Sans CJK JP", "Hiragino Sans", sans-serif',
+                  padding: entries !== null ? "2px 0 8px" : "2px 0",
+                  borderBottom: entries !== null
+                    ? "1px solid rgba(255,255,255,0.1)"
+                    : "none",
                 }}
-                tabIndex={0}
-                onActivate={ankiEnabled ? () => void addCard(e) : undefined}
-                onOKActionDescription={ankiEnabled ? "Create Anki card" : undefined}
               >
-                {/* the entry itself is the gamepad-focus/scroll-into-view
-                    target (tabIndex here, not just on the +Anki button) so
-                    landing on an entry and D-pad-down to the next one both
-                    work even when Anki is disabled and no button renders */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ fontSize: 18, minWidth: 0 }}>
-                    <b style={{ color: "#fff" }}>{e.expression}</b>
-                    {e.reading && e.reading !== e.expression ? (
-                      <span style={{ opacity: 0.8 }}>【{e.reading}】</span>
-                    ) : null}
-                    {e.pitch ? (
-                      <span style={{ fontSize: 12, opacity: 0.7 }}>
-                        {" "}[{e.pitch.join(",")}]
-                      </span>
-                    ) : null}
-                    {e.frequency ? (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          marginLeft: 6,
-                          padding: "1px 5px",
-                          borderRadius: 4,
-                          background: "rgba(79,195,247,0.2)",
-                          color: "#9fdcf9",
-                        }}
-                      >
-                        {e.frequency}
-                      </span>
-                    ) : null}
-                  </div>
-                  {ankiEnabled && (
+                {tokens.map((t, i) => {
+                  const inSel = !!sel && i >= sel[0] && i <= sel[1];
+                  const isFocused = focused === i;
+                  // DialogButton = native gamepad focus. The width/minWidth
+                  // overrides beat its default width:100% class so words sit
+                  // side by side and wrap like a sentence. The transparent
+                  // background also kills Steam's own focus highlight, so we
+                  // paint our own from onGamepadFocus state.
+                  return isContentWord(t) ? (
                     <DialogButton
+                      key={i}
                       style={{
                         width: "fit-content",
                         minWidth: 0,
-                        padding: "4px 10px",
-                        fontSize: 13,
-                        flexShrink: 0,
+                        margin: 0,
+                        padding: "0 2px",
+                        fontSize: 19,
+                        lineHeight: 1.7,
+                        background: isFocused
+                          ? "rgba(255,255,255,0.9)"
+                          : inSel
+                          ? "rgba(26,159,255,0.35)"
+                          : "transparent",
+                        color: isFocused ? "#111" : "#e8e8e8",
+                        borderRadius: 3,
+                        borderBottom: isFocused
+                          ? "2px solid transparent"
+                          : "2px dotted rgba(255,255,255,0.3)",
+                        boxShadow: "none",
+                        transition: "background 0.1s, color 0.1s",
                       }}
-                      focusable={false}
-                      onClick={() => void addCard(e)}
+                      onClick={() => void doLookup(i, true)}
+                      onGamepadFocus={() => onWordFocus(i)}
+                      onGamepadBlur={() => onWordBlur(i)}
+                      onOKActionDescription="Look up"
                     >
-                      + Anki
+                      {t.surface}
                     </DialogButton>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    whiteSpace: "pre-wrap",
-                    opacity: 0.92,
-                    maxHeight: 240,
-                    overflowY: "auto",
-                  }}
-                >
-                  {e.glosses}
-                </div>
-                {e.dicts.length > 0 && (
-                  <div style={{ fontSize: 10, opacity: 0.45 }}>
-                    {e.dicts.join(" · ")}
-                  </div>
-                )}
+                  ) : (
+                    <span
+                      key={i}
+                      style={{
+                        opacity: t.selectable ? 0.75 : 0.55,
+                        background: inSel ? "rgba(26,159,255,0.35)" : undefined,
+                        borderRadius: 3,
+                        padding: "0 1px",
+                      }}
+                      onClick={t.selectable ? () => void doLookup(i, true) : undefined}
+                    >
+                      {t.surface}
+                    </span>
+                  );
+                })}
               </Focusable>
             </PanelSectionRow>
-          ))}
-          </div>
-        </>
-      )}
-    </PanelSection>
+
+            {typeof confidence === "number" && confidence < LOW_CONFIDENCE_THRESHOLD && (
+              <PanelSectionRow>
+                <div style={{ fontSize: 12, color: "#e0a04f" }}>
+                  Accuracy low – check capture area
+                </div>
+              </PanelSectionRow>
+            )}
+
+            {message ? (
+              <PanelSectionRow>
+                <div style={{ fontSize: 12, color: "#dcae3c" }}>{message}</div>
+              </PanelSectionRow>
+            ) : null}
+
+            {entries !== null && entries.length === 0 && (
+              <PanelSectionRow>
+                <div style={{ fontSize: 12, color: "#e0a04f" }}>
+                  No dictionary hits — the OCR may have misread a character
+                  (the full line is also on the texthooker page in Firefox).
+                </div>
+              </PanelSectionRow>
+            )}
+
+            <div ref={entriesRef}>
+            {(entries ?? []).map((e, i) => (
+              <PanelSectionRow key={i}>
+                <Focusable
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    padding: "6px 2px",
+                    borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                  }}
+                  tabIndex={0}
+                  onActivate={ankiEnabled ? () => void addCard(e) : undefined}
+                  onOKActionDescription={ankiEnabled ? "Create Anki card" : undefined}
+                >
+                  {/* the entry itself is the gamepad-focus/scroll-into-view
+                      target (tabIndex here, not just on the +Anki button) so
+                      landing on an entry and D-pad-down to the next one both
+                      work even when Anki is disabled and no button renders */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ fontSize: 18, minWidth: 0 }}>
+                      <b style={{ color: "#fff" }}>{e.expression}</b>
+                      {e.reading && e.reading !== e.expression ? (
+                        <span style={{ opacity: 0.8 }}>【{e.reading}】</span>
+                      ) : null}
+                      {e.pitch ? (
+                        <span style={{ fontSize: 12, opacity: 0.7 }}>
+                          {" "}[{e.pitch.join(",")}]
+                        </span>
+                      ) : null}
+                      {e.frequency ? (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            marginLeft: 6,
+                            padding: "1px 5px",
+                            borderRadius: 4,
+                            background: "rgba(79,195,247,0.2)",
+                            color: "#9fdcf9",
+                          }}
+                        >
+                          {e.frequency}
+                        </span>
+                      ) : null}
+                    </div>
+                    {ankiEnabled && (
+                      <DialogButton
+                        style={{
+                          width: "fit-content",
+                          minWidth: 0,
+                          padding: "4px 10px",
+                          fontSize: 13,
+                          flexShrink: 0,
+                        }}
+                        focusable={false}
+                        onClick={() => void addCard(e)}
+                      >
+                        + Anki
+                      </DialogButton>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      whiteSpace: "pre-wrap",
+                      opacity: 0.92,
+                      maxHeight: 240,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {e.glosses}
+                  </div>
+                  {e.dicts.length > 0 && (
+                    <div style={{ fontSize: 10, opacity: 0.45 }}>
+                      {e.dicts.join(" · ")}
+                    </div>
+                  )}
+                </Focusable>
+              </PanelSectionRow>
+            ))}
+            </div>
+          </>
+        )}
+      </PanelSection>
+    </div>
   );
 };
