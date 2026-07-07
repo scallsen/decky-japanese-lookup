@@ -226,8 +226,6 @@ export const Panel: FC = () => {
                     flex: "0 1 auto",
                     width: "fit-content",
                     whiteSpace: "nowrap",
-                    padding: "4px 10px",
-                    fontSize: 13,
                   }}
                   onClick={() =>
                     openRegionEditor(
