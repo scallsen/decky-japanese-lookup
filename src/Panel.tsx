@@ -27,7 +27,7 @@ interface CaptureArea {
 }
 
 const TRIGGER_OPTIONS = [
-  { data: "off", label: "Off" },
+  { data: "off", label: "None" },
   { data: "L4", label: "L4" },
   { data: "R4", label: "R4" },
   { data: "L5", label: "L5" },
@@ -47,32 +47,6 @@ const ANKI_IMAGE_OPTIONS = [
   { data: "full", label: "Full screenshot" },
   { data: "crop", label: "Text box crop" },
 ];
-
-// No real Deck back-paddle glyphs are exposed to plugins — this is a
-// stand-in: a colored letter chip so L/R read apart at a glance, with the
-// exact button (L4/L5/R4/R5) still spelled out in the row label.
-const TriggerBadge: FC<{ button: string }> = ({ button }) => {
-  const isLeft = button.startsWith("L");
-  return (
-    <div
-      style={{
-        width: 20,
-        height: 20,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 5,
-        fontSize: 11,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        background: isLeft ? "rgba(79,195,247,0.2)" : "rgba(255,159,67,0.2)",
-        color: isLeft ? "#9fdcf9" : "#ffc98f",
-      }}
-    >
-      {button[0]}
-    </div>
-  );
-};
 
 export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
@@ -201,10 +175,16 @@ export const Panel: FC = () => {
 
       <PanelSection title="Capture area">
         {areas.map((area, i) => (
-          <div key={i}>
+          <div
+            key={i}
+            style={{
+              borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+              marginTop: i > 0 ? 4 : 0,
+              paddingTop: i > 0 ? 4 : 0,
+            }}
+          >
             <PanelSectionRow>
               <DropdownItem
-                icon={area.button ? <TriggerBadge button={area.button} /> : undefined}
                 label={i === 0 ? "Default" : `Area ${i + 1}`}
                 description="Trigger button"
                 rgOptions={TRIGGER_OPTIONS}
