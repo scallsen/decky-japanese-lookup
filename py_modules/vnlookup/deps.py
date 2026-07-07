@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 PACKAGES = ["rapidocr>=3.0,<4", "onnxruntime>=1.17"]
 MARKER = ".vnlookup-runtime-ok"
 
+# Lookup stack: morphological analyzer for tokenization/deinflection.
+# Separate install (and marker) so OCR works without it and vice versa.
+LOOKUP_PACKAGES = ["fugashi>=1.3", "unidic-lite>=1.0.8"]
+LOOKUP_MARKER = ".vnlookup-lookup-ok"
+
 
 class RuntimeInstaller:
     def __init__(self, runtime_dir: str):
@@ -38,26 +43,37 @@ class RuntimeInstaller:
         return (os.path.exists(self.python)
                 and os.path.exists(os.path.join(self.venv_dir, MARKER)))
 
+    def is_lookup_installed(self) -> bool:
+        return (os.path.exists(self.python)
+                and os.path.exists(os.path.join(self.venv_dir, LOOKUP_MARKER)))
+
     def get_status(self) -> dict:
         with self._lock:
             return {
                 "installed": self.is_installed(),
+                "lookup_installed": self.is_lookup_installed(),
                 "installing": self._installing,
                 "step": self._step,
                 "error": self._error,
                 "venv_dir": self.venv_dir,
             }
 
-    def start_install(self) -> bool:
+    def _start(self, target) -> bool:
         with self._lock:
             if self._installing:
                 return False
             self._installing = True
             self._error = None
             self._step = "starting"
-        self._thread = threading.Thread(target=self._install, daemon=True)
+        self._thread = threading.Thread(target=target, daemon=True)
         self._thread.start()
         return True
+
+    def start_install(self) -> bool:
+        return self._start(self._install)
+
+    def start_install_lookup(self) -> bool:
+        return self._start(self._install_lookup)
 
     def _set_step(self, step: str):
         with self._lock:
@@ -102,6 +118,37 @@ class RuntimeInstaller:
                 logger.warning("opencv headless swap failed; keeping default build")
             self._run([self.python, "-c", "import rapidocr, onnxruntime, cv2, PIL"],
                       "verifying imports")
+            with open(marker, "w") as f:
+                f.write("ok\n")
+            self._set_step("done")
+        except subprocess.CalledProcessError as e:
+            with self._lock:
+                self._error = (f"install step failed ({self._step}), "
+                               f"see {self.log_path}: {e}")
+            logger.error(self._error)
+        except Exception as e:
+            with self._lock:
+                self._error = f"install failed during {self._step}: {e}"
+            logger.error(self._error)
+        finally:
+            with self._lock:
+                self._installing = False
+
+    def _install_lookup(self):
+        """Add the tokenizer stack to an existing venv (or create one)."""
+        try:
+            marker = os.path.join(self.venv_dir, LOOKUP_MARKER)
+            if os.path.exists(marker):
+                os.remove(marker)
+            if not os.path.exists(self.python):
+                self._run(["/usr/bin/python3", "-m", "venv", self.venv_dir],
+                          "creating venv")
+            pip = [self.python, "-m", "pip"]
+            self._run(pip + ["install"] + LOOKUP_PACKAGES,
+                      "installing tokenizer")
+            self._run([self.python, "-c",
+                       "from fugashi import Tagger; Tagger()('テスト')"],
+                      "verifying tokenizer")
             with open(marker, "w") as f:
                 f.write("ok\n")
             self._set_step("done")

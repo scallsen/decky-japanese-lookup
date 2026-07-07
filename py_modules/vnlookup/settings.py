@@ -20,6 +20,8 @@ DEFAULTS: dict[str, Any] = {
     # trigger (read by the frontend poller)
     "trigger_button": "L5",
     "trigger_hold_ms": 250,
+    # open the Quick Access menu (lookup panel) after a successful capture
+    "auto_open_qam": True,
     # delivery — clipboard copy is done by the frontend in Steam's CEF;
     # gamescope (SteamOS >= 3.7.14) syncs it to Firefox/Yomitan
     "texthooker_port": 8766,
@@ -33,6 +35,13 @@ DEFAULTS: dict[str, Any] = {
     "anki_sentence_field": "Sentence",
     # which image goes on the card: "full" frame or textbox "crop"
     "anki_image": "full",
+    # native lookup → direct card creation (no Yomitan). Field names map
+    # onto the user's note type; empty field names are skipped.
+    "anki_deck": "Mining",
+    "anki_note_type": "Basic",
+    "anki_expression_field": "Front",
+    "anki_reading_field": "",
+    "anki_glossary_field": "Back",
 }
 
 

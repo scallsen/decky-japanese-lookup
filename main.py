@@ -17,9 +17,10 @@ from vnlookup.anki import AnkiConnect, AnkiError
 from vnlookup.capture import CaptureError, ScreenCapture
 from vnlookup.deliver import DeliveryServer
 from vnlookup.deps import RuntimeInstaller
+from vnlookup.dictionary import Dictionary
 from vnlookup.hid_monitor import HidrawButtonMonitor
 from vnlookup.models import ModelDownloader
-from vnlookup.ocr import GeminiBackend, OCRError, RapidOCRBackend
+from vnlookup.ocr import GeminiBackend, OCRError, RapidOCRBackend, tokenize
 from vnlookup.settings import Settings
 
 logger = decky.logger
@@ -42,6 +43,10 @@ class Plugin:
         self.monitor = HidrawButtonMonitor()
         self.delivery = DeliveryServer(port=int(self.settings.get("texthooker_port")))
         self.anki = AnkiConnect(self.settings.get("ankiconnect_url"))
+        self.dictionary = Dictionary(
+            os.path.join(RUNTIME_DIR, "dictionary.sqlite3"),
+            os.path.join(RUNTIME_DIR, "dicts"))
+        self._token_cache = {"text": None, "tokens": []}
 
         self._busy = False
         self._last_result = None
@@ -215,6 +220,7 @@ class Plugin:
             "confidence": round(confidence, 3),
             "clients": self.delivery.client_count,
             "copy_to_clipboard": bool(self.settings.get("copy_to_clipboard")),
+            "auto_open_qam": bool(self.settings.get("auto_open_qam")),
             "warning": warning,
         }
         self._last_result = payload
@@ -306,6 +312,98 @@ class Plugin:
             # don't let the auto-watcher enrich the same note again
             self._anki_last_note_seen = max(self._anki_last_note_seen, note_id)
             return {"ok": True, "note_id": note_id, **wrote}
+        except AnkiError as e:
+            return {"ok": False, "error": str(e)}
+
+    # ---- native lookup (Phase C: no Yomitan needed) ------------------------
+
+    async def tokenize_line(self, text: str):
+        """Split a sentence into word tokens with dictionary-form keys."""
+        if not text:
+            return {"ok": False, "error": "no text"}
+        if not self.installer.is_lookup_installed():
+            return {"ok": False,
+                    "error": "lookup runtime not installed"}
+        if self._token_cache["text"] == text:
+            return {"ok": True, "tokens": self._token_cache["tokens"]}
+        try:
+            tokens = await tokenize(self.installer.python, text)
+        except OCRError as e:
+            return {"ok": False, "error": str(e)}
+        self._token_cache = {"text": text, "tokens": tokens}
+        return {"ok": True, "tokens": tokens}
+
+    async def lookup_word(self, queries):
+        """Look a word up by candidate keys, best-first.
+
+        `queries` come from a token: [dict_form, lemma, surface, reading].
+        UniDic marks loanword lemmas like データ-data; strip the suffix.
+        """
+        cleaned = []
+        for q in queries or []:
+            if not q:
+                continue
+            q = q.split("-")[0] if "-" in q and not q.startswith("-") else q
+            if q and q not in cleaned:
+                cleaned.append(q)
+        entries = await asyncio.to_thread(self.dictionary.lookup, cleaned)
+        return {"ok": True, "entries": entries}
+
+    async def lookup_selection(self, text: str):
+        """Longest-prefix lookup for merged token selections."""
+        exact = await asyncio.to_thread(self.dictionary.lookup, [text])
+        if exact:
+            return {"ok": True, "entries": exact}
+        entries = await asyncio.to_thread(
+            self.dictionary.longest_prefix_lookup, text)
+        return {"ok": True, "entries": entries}
+
+    async def get_lookup_status(self):
+        return {
+            "runtime_installed": self.installer.is_lookup_installed(),
+            "runtime": self.installer.get_status(),
+            "dictionary": self.dictionary.get_status(),
+        }
+
+    async def install_lookup_runtime(self):
+        return {"started": self.installer.start_install_lookup()}
+
+    async def import_dictionaries(self, download_jitendex: bool = False):
+        return {"started": self.dictionary.start_import(download_jitendex)}
+
+    async def create_anki_card(self, expression: str, reading: str,
+                               glosses: str, sentence: str):
+        """Direct card creation from the native lookup panel."""
+        s = self.settings
+        fields = {}
+        for field_key, value in (
+            ("anki_expression_field", expression),
+            ("anki_reading_field", reading),
+            ("anki_glossary_field", glosses),
+            ("anki_sentence_field", sentence),
+        ):
+            name = (s.get(field_key) or "").strip()
+            if name:
+                fields[name] = value or ""
+
+        picture_field = (s.get("anki_picture_field") or "").strip()
+        pending = self._pending_capture
+        picture_path = None
+        if picture_field and pending:
+            fields.setdefault(picture_field, "")
+            picture_path = (pending["crop"] if s.get("anki_image") == "crop"
+                            else pending["full"])
+
+        if not fields:
+            return {"ok": False,
+                    "error": "no Anki fields configured in settings"}
+        try:
+            note_id = await self.anki.add_note(
+                s.get("anki_deck"), s.get("anki_note_type"), fields,
+                picture_path=picture_path, picture_field=picture_field)
+            # keep the Yomitan-watcher from enriching this card again
+            self._anki_last_note_seen = max(self._anki_last_note_seen, note_id)
+            return {"ok": True, "note_id": note_id}
         except AnkiError as e:
             return {"ok": False, "error": str(e)}
 

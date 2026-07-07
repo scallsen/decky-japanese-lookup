@@ -160,7 +160,31 @@ Open the Quick Access menu (…) → VN Lookup:
 
 ---
 
-## Part 3 — The mining workflow
+## Part 3 — Native lookup (no Firefox needed)
+
+The plugin has a built-in dictionary: after a capture, the line appears in
+the VN Lookup panel (**…** menu) split into tappable word chips.
+
+One-time setup, from the Lookup section of the panel:
+
+1. **Install lookup runtime** (~60 MB — fugashi + UniDic tokenizer into the
+   same venv as the OCR runtime).
+2. **Download dictionary** (Jitendex, ~70 MB) — or drop any Yomitan-format
+   dictionary zips (frequency, pitch-accent, JMnedict…) into
+   `~/homebrew/data/vn-lookup/dicts/` on the Deck and press *Import*.
+
+Flow: capture a line → press **…** → tap a word chip → definition appears
+(reading, pitch, frequency badge when a matching dictionary is imported) →
+**➕ Create Anki card** makes the card directly via AnkiConnect with the
+expression, reading, glossary, full sentence, and the game screenshot —
+no Yomitan involved. If the tokenizer split a compound word, use
+**extend ▶ / ◀ shrink** to merge neighboring chips before looking up.
+
+Set your deck, note type, and field names in the panel's Anki section
+(blank field name = that piece is skipped). The Firefox + Yomitan path
+from Part 1 keeps working as a fallback and is no longer required.
+
+## Part 4 — The Firefox/Yomitan mining workflow (optional fallback)
 
 1. Launch your VN.
 2. Steam button → Library → launch **Firefox** (texthooker page loads) and
@@ -212,12 +236,14 @@ main.py                      # Decky backend: pipeline, callables, Anki watcher
 py_modules/vnlookup/
   hid_monitor.py             # raw hidraw button monitor (ported from Decky-Translator)
   capture.py                 # PipeWire/GStreamer capture in gamescope
-  deps.py                    # on-device venv bootstrap (RapidOCR + ONNX)
+  deps.py                    # on-device venv bootstrap (OCR + tokenizer stacks)
   models.py                  # PP-OCRv5 model downloader (Japanese subset)
   ocr.py / ocr_worker.py     # backend↔venv OCR subprocess boundary
+  lookup_worker.py           # venv tokenizer (fugashi/UniDic → word chips)
+  dictionary.py              # Yomitan-format dict importer + SQLite lookup
   cleanup.py                 # rule-based Japanese OCR cleanup
   deliver.py                 # texthooker web page + WebSocket server (aiohttp)
-  anki.py                    # AnkiConnect client (screenshot enrichment)
+  anki.py                    # AnkiConnect client (addNote + enrichment)
   settings.py                # JSON settings persistence
 src/
   index.tsx                  # plugin entry: trigger watcher, events, overlay mount

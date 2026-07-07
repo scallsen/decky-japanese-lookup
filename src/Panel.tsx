@@ -20,6 +20,7 @@ import {
   setSetting,
   testLine,
 } from "./api";
+import { LookupSection } from "./LookupPanel";
 import type { OverlayState } from "./Overlay";
 
 const TRIGGER_OPTIONS = ["L4", "R4", "L5", "R5"].map((b) => ({
@@ -90,6 +91,7 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
 
   return (
     <>
+      <LookupSection sentence={status?.last_result?.text ?? null} />
       <PanelSection title="Status">
         <PanelSectionRow>
           <div style={{ fontSize: 12, lineHeight: 1.6 }}>
@@ -202,6 +204,14 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
             onChange={(v) => update("trigger_hold_ms", v)}
           />
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Open lookup after capture"
+            description="Pop the Quick Access menu when a line is read"
+            checked={!!settings.auto_open_qam}
+            onChange={(v) => update("auto_open_qam", v)}
+          />
+        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="OCR">
@@ -280,6 +290,41 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
             rgOptions={ANKI_IMAGE_OPTIONS}
             selectedOption={settings.anki_image}
             onChange={(o) => update("anki_image", o.data)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <TextField
+            label="Deck (for created cards)"
+            value={settings.anki_deck}
+            onChange={(e) => update("anki_deck", e.target.value)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <TextField
+            label="Note type"
+            value={settings.anki_note_type}
+            onChange={(e) => update("anki_note_type", e.target.value)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <TextField
+            label="Expression field"
+            value={settings.anki_expression_field}
+            onChange={(e) => update("anki_expression_field", e.target.value)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <TextField
+            label="Reading field (blank = skip)"
+            value={settings.anki_reading_field}
+            onChange={(e) => update("anki_reading_field", e.target.value)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <TextField
+            label="Glossary field (blank = skip)"
+            value={settings.anki_glossary_field}
+            onChange={(e) => update("anki_glossary_field", e.target.value)}
           />
         </PanelSectionRow>
         <PanelSectionRow>
