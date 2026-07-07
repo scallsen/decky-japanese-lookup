@@ -21,6 +21,7 @@ from .net import ssl_context
 logger = logging.getLogger(__name__)
 
 WORKER = os.path.join(os.path.dirname(__file__), "ocr_worker.py")
+LOOKUP_WORKER = os.path.join(os.path.dirname(__file__), "lookup_worker.py")
 OCR_TIMEOUT = 120  # first run loads ONNX models; generous
 
 
@@ -64,10 +65,11 @@ def _worker_env():
     return env
 
 
-async def _run_worker(venv_python, args, stdin_bytes=None, timeout=OCR_TIMEOUT):
+async def _run_worker(venv_python, args, stdin_bytes=None, timeout=OCR_TIMEOUT,
+                      script=WORKER):
     # (no -S here: the venv's site-packages are resolved by the site module)
     proc = await asyncio.create_subprocess_exec(
-        venv_python, WORKER, *args,
+        venv_python, script, *args,
         stdin=asyncio.subprocess.PIPE if stdin_bytes is not None else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -132,6 +134,17 @@ class RapidOCRBackend:
         if result.get("error"):
             raise OCRError(result["error"])
         return result["crop_path"]
+
+
+async def tokenize(venv_python: str, text: str) -> list:
+    """Tokenize a sentence with the venv's fugashi/unidic worker."""
+    result = await _run_worker(
+        venv_python,
+        ["tokenize", json.dumps({"text": text}, ensure_ascii=False)],
+        timeout=60, script=LOOKUP_WORKER)
+    if result.get("error"):
+        raise OCRError(f"tokenizer failed: {result['error']}")
+    return result.get("tokens", [])
 
 
 GEMINI_PROMPT = (

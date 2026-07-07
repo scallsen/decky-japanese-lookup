@@ -48,6 +48,37 @@ class AnkiConnect:
         except AnkiError:
             return False
 
+    async def add_note(self, deck: str, model: str, fields: dict,
+                       picture_path: str = None, picture_field: str = None) -> int:
+        """Create a note directly (native lookup path — no Yomitan).
+
+        Returns the new note id. The screenshot rides along at creation
+        time, so no watcher round-trip is needed for these cards.
+        """
+        note = {
+            "deckName": deck,
+            "modelName": model,
+            "fields": fields,
+            "options": {"allowDuplicate": True},
+        }
+        if picture_path and picture_field and picture_field in fields:
+            try:
+                with open(picture_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                note["fields"] = {k: v for k, v in fields.items()
+                                  if k != picture_field}
+                note["picture"] = [{
+                    "filename": f"vnlookup_{int(time.time() * 1000)}.png",
+                    "data": b64,
+                    "fields": [picture_field],
+                }]
+            except OSError as e:
+                logger.warning(f"screenshot unreadable, card without it: {e}")
+        result = await self.invoke("addNote", note=note)
+        if not result:
+            raise AnkiError("addNote returned no note id")
+        return int(result)
+
     async def notes_created_after(self, since_ms: int):
         ids = await self.invoke("findNotes", query="added:1")
         return sorted(i for i in ids if i > since_ms)

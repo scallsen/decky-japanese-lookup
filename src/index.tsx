@@ -1,4 +1,4 @@
-import { Router, staticClasses } from "@decky/ui";
+import { Navigation, QuickAccessTab, Router, staticClasses } from "@decky/ui";
 import {
   addEventListener,
   removeEventListener,
@@ -54,6 +54,17 @@ export default definePlugin(() => {
   const onEvent = (ev: VnlEvent) => {
     if (ev.stage === "done" && ev.text && ev.copy_to_clipboard) {
       copyToClipboard(ev.text);
+    }
+    if (ev.stage === "done" && ev.auto_open_qam) {
+      // select our plugin in Decky's QAM tab before opening it.
+      // deckyState is TS-private but present at runtime; internal API, so
+      // fail soft — worst case the QAM opens on the last-used view.
+      try {
+        (window as any).DeckyPluginLoader?.deckyState?.setActivePlugin?.("VN Lookup");
+      } catch {
+        /* decky internals changed; QAM still opens */
+      }
+      Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
     }
     overlayState.handleEvent(ev);
   };
