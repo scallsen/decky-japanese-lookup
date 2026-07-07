@@ -40,6 +40,32 @@ const ANKI_IMAGE_OPTIONS = [
   { data: "crop", label: "Text box crop" },
 ];
 
+// No real Deck back-paddle glyphs are exposed to plugins — this is a
+// stand-in: a colored letter chip so L/R read apart at a glance, with the
+// exact button (L4/L5/R4/R5) still spelled out in the row label.
+const TriggerBadge: FC<{ button: string }> = ({ button }) => {
+  const isLeft = button.startsWith("L");
+  return (
+    <div
+      style={{
+        width: 20,
+        height: 20,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 5,
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: "monospace",
+        background: isLeft ? "rgba(79,195,247,0.2)" : "rgba(255,159,67,0.2)",
+        color: isLeft ? "#9fdcf9" : "#ffc98f",
+      }}
+    >
+      {button[0]}
+    </div>
+  );
+};
+
 export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
@@ -154,7 +180,8 @@ export const Panel: FC = () => {
         {TRIGGER_BUTTONS.map((b) => (
           <PanelSectionRow key={b}>
             <DropdownItem
-              label={`${b} captures`}
+              icon={<TriggerBadge button={b} />}
+              label={b}
               rgOptions={BUTTON_MODE_OPTIONS}
               selectedOption={buttonMap[b] ?? "off"}
               onChange={(o) =>
