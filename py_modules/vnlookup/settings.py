@@ -5,16 +5,13 @@ import os
 from typing import Any
 
 DEFAULTS: dict[str, Any] = {
-    # Capture regions as fractions of screen size. "region" is the primary
-    # text box (bottom third by default); "region_alt" is a second layout
-    # (e.g. full-screen NVL text) selectable per button.
-    "region": {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36},
-    "region_alt": {"x": 0.1, "y": 0.08, "w": 0.8, "h": 0.84},
-    # crop to region before OCR ("region") or OCR the whole frame ("fullscreen")
-    "capture_mode": "region",
-    # back button -> what it captures: "off" | "box" | "alt" | "fullscreen".
-    # None = not yet migrated from the legacy single trigger_button setting.
-    "button_map": None,
+    # List of {"region": {x,y,w,h}, "button": "L4"|"R4"|"L5"|"R5"|None}.
+    # Each area is a screen region (fraction of screen size) plus the back
+    # button that triggers a capture of it; index 0 is the non-deletable
+    # "Default" area. None here = not yet migrated from the legacy
+    # region/region_alt/button_map/trigger_button settings — see
+    # Plugin._main's one-time migration.
+    "capture_areas": None,
     # "rapidocr" (local, default) | "gemini" (cloud, needs api key)
     "ocr_backend": "rapidocr",
     "gemini_api_key": "",
@@ -23,7 +20,6 @@ DEFAULTS: dict[str, Any] = {
     # cleanup options
     "strip_speaker_name": True,
     # trigger (read by the frontend poller)
-    "trigger_button": "L5",
     "trigger_hold_ms": 250,
     # open the Quick Access menu (lookup panel) after a successful capture
     "auto_open_qam": True,
@@ -33,6 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "copy_to_clipboard": True,
     # keep last N capture screenshots for Anki cards
     "screenshot_history": 20,
+    # master switch — off by default; Anki is an opt-in feature
+    "anki_enabled": False,
     # AnkiConnect enrichment of Yomitan-created cards
     "ankiconnect_url": "http://127.0.0.1:8765",
     "anki_auto_enrich": True,

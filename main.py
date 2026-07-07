@@ -31,14 +31,29 @@ SETTINGS_DIR = decky.DECKY_PLUGIN_SETTINGS_DIR
 PLUGIN_DIR = decky.DECKY_PLUGIN_DIR
 CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
 
+# fallback shapes used only by the one-time capture_areas migration below
+# and as the starting point for newly-added areas
+_LEGACY_REGION = {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36}
+_LEGACY_REGION_ALT = {"x": 0.1, "y": 0.08, "w": 0.8, "h": 0.84}
+
 
 class Plugin:
     async def _main(self):
         self.settings = Settings(SETTINGS_DIR)
-        if not self.settings.get("button_map"):
-            # migrate from the single-trigger era: old button keeps the box
-            legacy = self.settings.get("trigger_button") or "L5"
-            self.settings.set("button_map", {legacy: "box"})
+        if not self.settings.get("capture_areas"):
+            # migrate from the region/region_alt/button_map (or even older
+            # single trigger_button) era into the capture_areas list
+            legacy_map = self.settings.get("button_map")
+            if not legacy_map:
+                legacy_map = {self.settings.get("trigger_button") or "L5": "box"}
+            region = self.settings.get("region") or _LEGACY_REGION
+            region_alt = self.settings.get("region_alt") or _LEGACY_REGION_ALT
+            areas = [
+                {"region": region if mode == "box" else region_alt, "button": button}
+                for button, mode in legacy_map.items()
+                if mode in ("box", "alt")
+            ]
+            self.settings.set("capture_areas", areas or [{"region": region, "button": None}])
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
@@ -96,22 +111,21 @@ class Plugin:
 
     # ---- the pipeline ----------------------------------------------------
 
-    async def capture_and_mine(self, mode: str = "box"):
+    async def capture_and_mine(self, button: str | None = None):
         if self._busy:
             return {"ok": False, "error": "capture already in progress"}
         self._busy = True
         try:
-            return await self._run_pipeline(mode)
+            return await self._run_pipeline(button)
         finally:
             self._busy = False
 
-    async def _run_pipeline(self, mode: str = "box"):
+    async def _run_pipeline(self, button: str | None = None):
         ts = int(time.time() * 1000)
         full_png = os.path.join(CAPTURES_DIR, f"capture_{ts}.png")
         crop_png = os.path.join(CAPTURES_DIR, f"crop_{ts}.png")
 
-        # 1. capture — the "capturing" event HIDES the overlay (it would be
-        # photographed otherwise); give the compositor a beat to remove it
+        # 1. capture — give the compositor a beat before grabbing the frame
         await self._emit("capturing")
         await asyncio.sleep(0.15)
         try:
@@ -132,17 +146,16 @@ class Plugin:
                 await self._emit("error", message=f"Capture failed: {e}")
                 return {"ok": False, "error": str(e)}
 
-        # 2. OCR — the trigger button picks which layout gets cropped
-        await self._emit("ocr")
+        # 2. OCR — the trigger button picks which capture area gets cropped.
+        # region rides along on the "ocr" event so the frontend can outline
+        # the area actively being scanned, directly over the running game.
         backend_name = self.settings.get("ocr_backend")
-        if mode == "fullscreen":
-            region = None
-        elif mode == "alt":
-            region = self.settings.get("region_alt")
-        elif self.settings.get("capture_mode") == "region":
-            region = self.settings.get("region")
-        else:
-            region = None
+        area = next(
+            (a for a in (self.settings.get("capture_areas") or [])
+             if a.get("button") == button),
+            None)
+        region = area["region"] if area else None
+        await self._emit("ocr", region=region)
 
         runtime_ok = self.installer.is_installed()
         cloud_full_frame = False
@@ -198,7 +211,11 @@ class Plugin:
             raw_text, remove_speaker=bool(self.settings.get("strip_speaker_name")))
 
         if not cleaned:
-            # total OCR miss: nothing detected in the region
+            # total OCR miss: nothing detected in the region. Still record
+            # this as the last result (empty text) so the polled sidebar
+            # can show a "no text found" notice instead of a stale sentence
+            self._last_result = {
+                "text": "", "raw": raw_text, "confidence": round(confidence, 3)}
             msg = "No text detected in the capture region"
             await self._emit("error", message=msg, raw=raw_text)
             return {"ok": False, "error": msg, "raw": raw_text}
@@ -259,6 +276,8 @@ class Plugin:
         while True:
             try:
                 await asyncio.sleep(3)
+                if not self.settings.get("anki_enabled"):
+                    continue
                 if not self.settings.get("anki_auto_enrich"):
                     continue
                 pending = self._pending_capture
@@ -305,6 +324,8 @@ class Plugin:
 
     async def enrich_latest_note(self):
         """Manual fallback: attach the last capture to the newest note."""
+        if not self.settings.get("anki_enabled"):
+            return {"ok": False, "error": "Anki integration is disabled in settings"}
         pending = self._pending_capture
         if not pending:
             return {"ok": False, "error": "no capture to attach"}
@@ -482,6 +503,8 @@ class Plugin:
                                glosses: str, sentence: str):
         """Direct card creation from the native lookup panel."""
         s = self.settings
+        if not s.get("anki_enabled"):
+            return {"ok": False, "error": "Anki integration is disabled in settings"}
         fields = {}
         for field_key, value in (
             ("anki_expression_field", expression),
@@ -517,7 +540,8 @@ class Plugin:
     # ---- setup / status callables -----------------------------------------
 
     async def get_status(self):
-        anki_ok = await self.anki.is_available()
+        anki_ok = (await self.anki.is_available()
+                   if self.settings.get("anki_enabled") else False)
         probe = {}
         try:
             probe = await self.capture.probe()
