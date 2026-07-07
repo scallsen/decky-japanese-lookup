@@ -72,6 +72,13 @@ export const LookupSection: FC<{
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entriesRef = useRef<HTMLDivElement | null>(null);
   const wantFocusMove = useRef(false);
+  const firstWordRef = useRef<HTMLElement | null>(null);
+  // callback ref, not a plain object ref — the first word may render as
+  // either a DialogButton (div) or a plain span depending on its POS, and a
+  // callback typed for the wider HTMLElement is assignable to both
+  const setFirstWordRef = (el: HTMLElement | null) => {
+    firstWordRef.current = el;
+  };
 
   const refresh = async () => {
     try {
@@ -109,6 +116,16 @@ export const LookupSection: FC<{
       if (alive.current && r.ok && r.tokens) setTokens(r.tokens);
     });
   }, [sentence, status?.runtime_installed]);
+
+  // scroll the fresh sentence's first word into view once its chip actually
+  // renders — doing this off the capture event itself (rather than here)
+  // raced the async tokenize call above, scrolling before the new words (or
+  // the QAM) had actually rendered
+  useEffect(() => {
+    if (tokens.length > 0) {
+      firstWordRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [tokens]);
 
   // D-pad rests on a word for a beat → look it up without pressing A.
   // Debounced so scrolling across the sentence doesn't fire per word.
@@ -283,6 +300,7 @@ export const LookupSection: FC<{
                 return isContentWord(t) ? (
                   <DialogButton
                     key={i}
+                    ref={i === 0 ? setFirstWordRef : undefined}
                     style={{
                       width: "fit-content",
                       minWidth: 0,
@@ -313,6 +331,7 @@ export const LookupSection: FC<{
                 ) : (
                   <span
                     key={i}
+                    ref={i === 0 ? setFirstWordRef : undefined}
                     style={{
                       opacity: t.selectable ? 0.75 : 0.55,
                       background: inSel ? "rgba(26,159,255,0.35)" : undefined,
