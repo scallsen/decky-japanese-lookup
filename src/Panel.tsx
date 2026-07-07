@@ -54,6 +54,7 @@ const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
       border: "1px solid rgba(255,255,255,0.15)",
       borderRadius: 4,
       overflow: "hidden",
+      marginBottom: 8,
     }}
   >
     <div
