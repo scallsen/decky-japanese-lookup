@@ -73,6 +73,11 @@ export const downloadModels = callable<[], { started: boolean }>("download_model
 export const testLine = callable<[], { ok: boolean; clients: number }>("test_line");
 export const enrichLatestNote = callable<[], { ok: boolean; error?: string; note_id?: number }>("enrich_latest_note");
 
+// visual region editor
+export const getEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("get_editor_frame");
+export const captureEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("capture_editor_frame");
+export const detectRegion = callable<[], { ok: boolean; region?: Region; image?: string; error?: string }>("detect_region");
+
 // native lookup
 export const tokenizeLine = callable<[text: string], { ok: boolean; tokens?: Token[]; error?: string }>("tokenize_line");
 export const lookupWord = callable<[queries: string[]], { ok: boolean; entries: DictEntry[] }>("lookup_word");

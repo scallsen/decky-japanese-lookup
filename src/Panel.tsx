@@ -22,6 +22,7 @@ import {
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import type { OverlayState } from "./Overlay";
+import { openRegionEditor } from "./RegionEditor";
 
 const TRIGGER_BUTTONS = ["L4", "R4", "L5", "R5"];
 
@@ -119,11 +120,20 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
   const [busyMsg, setBusyMsg] = useState("");
   const alive = useRef(true);
+  const lastLocalEdit = useRef(0);
 
   const refreshStatus = async () => {
     try {
       const s = await getStatus();
       if (alive.current) setStatus(s);
+      // pick up settings changed elsewhere (e.g. the visual region editor
+      // modal saves directly) — but never clobber an in-progress slider drag
+      if (Date.now() - lastLocalEdit.current > 3000) {
+        const fresh = await getAllSettings();
+        if (alive.current && Date.now() - lastLocalEdit.current > 3000) {
+          setSettingsState(fresh);
+        }
+      }
     } catch {
       /* backend still starting */
     }
@@ -141,6 +151,7 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
   }, []);
 
   const update = (key: string, value: any) => {
+    lastLocalEdit.current = Date.now();
     setSettingsState((prev) => (prev ? { ...prev, [key]: value } : prev));
     void setSetting(key, value);
   };
@@ -331,6 +342,24 @@ export const Panel: FC<{ overlayState: OverlayState }> = ({ overlayState }) => {
             onChange={(v) => update("strip_speaker_name", v)}
           />
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => openRegionEditor("Text box region", "region", region)}
+          >
+            Edit text box region visually…
+          </ButtonItem>
+        </PanelSectionRow>
+        {altInUse && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={() => openRegionEditor("Alt region", "region_alt", regionAlt)}
+            >
+              Edit alt region visually…
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
         <RegionSliders label="Text box region" region={region} onChange={setRegion} />
         {altInUse && (
           <RegionSliders label="Alt region" region={regionAlt} onChange={setRegionAlt} />

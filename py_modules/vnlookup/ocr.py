@@ -30,10 +30,12 @@ class OCRError(Exception):
 
 
 class OCRResult:
-    def __init__(self, regions, crop_path=None):
-        # regions: [{text, rect, confidence}]
+    def __init__(self, regions, crop_path=None, image_size=None):
+        # regions: [{text, rect, confidence}]; rects are in pixels of the
+        # OCR'd image, whose dimensions are image_size (w, h) when known
         self.regions = regions
         self.crop_path = crop_path
+        self.image_size = image_size
 
     @property
     def text(self) -> str:
@@ -116,7 +118,11 @@ class RapidOCRBackend:
             if trace:
                 logger.error(f"worker trace: {trace}")
             raise OCRError(result["error"])
-        return OCRResult(result.get("regions", []), result.get("crop_path"))
+        size = None
+        if result.get("width") and result.get("height"):
+            size = (result["width"], result["height"])
+        return OCRResult(result.get("regions", []), result.get("crop_path"),
+                         image_size=size)
 
     async def encode_raw(self, raw: bytes, width: int, height: int, out_png: str) -> str:
         result = await _run_worker(

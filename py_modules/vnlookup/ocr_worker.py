@@ -125,7 +125,9 @@ def cmd_recognize(opts):
             })
 
     print(json.dumps({"error": None, "regions": regions,
-                      "crop_path": crop_out or None}, ensure_ascii=False))
+                      "crop_path": crop_out or None,
+                      "width": img.width, "height": img.height},
+                     ensure_ascii=False))
 
 
 def cmd_encode_raw(width, height, out_png):

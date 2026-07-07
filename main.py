@@ -7,6 +7,7 @@ remember the screenshot so new Anki cards get enriched with it.
 """
 
 import asyncio
+import base64
 import os
 import time
 
@@ -323,6 +324,103 @@ class Plugin:
             return {"ok": True, "note_id": note_id, **wrote}
         except AnkiError as e:
             return {"ok": False, "error": str(e)}
+
+    # ---- visual region editor ----------------------------------------------
+    # The editor works on the LATEST pipeline capture, never a fresh frame:
+    # a fresh capture would photograph the editor modal itself (the PipeWire
+    # source is the composited screen, UI included). Pipeline captures are
+    # taken in-game with no UI up, so they're always clean.
+
+    def _latest_capture_path(self):
+        """Newest clean frame: pipeline captures or the editor's refresh."""
+        try:
+            files = [os.path.join(CAPTURES_DIR, f)
+                     for f in os.listdir(CAPTURES_DIR)
+                     if f.startswith("capture_")]
+            preview = os.path.join(RUNTIME_DIR, "preview.png")
+            if os.path.exists(preview):
+                files.append(preview)
+            return max(files, key=os.path.getmtime) if files else None
+        except OSError:
+            return None
+
+    async def get_editor_frame(self):
+        """Latest clean full-frame capture for the region editor."""
+        path = self._latest_capture_path()
+        if not path:
+            return {"ok": False,
+                    "error": "no capture yet — use Refresh frame, or hold "
+                             "your capture button in-game"}
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        return {"ok": True, "image": b64}
+
+    async def capture_editor_frame(self):
+        """Fresh frame for the editor. Only call with all UI closed — the
+        frontend choreographs: close modal + QAM, wait, capture, reopen."""
+        if self._busy:
+            return {"ok": False, "error": "capture already in progress"}
+        self._busy = True
+        try:
+            path = os.path.join(RUNTIME_DIR, "preview.png")
+            await self.capture.capture_png(path)
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            return {"ok": True, "image": b64}
+        except CaptureError as e:
+            return {"ok": False, "error": str(e)}
+        finally:
+            self._busy = False
+
+    async def detect_region(self):
+        """Snap a region to the Japanese text in the latest capture."""
+        if not (self.installer.is_installed() and self.downloader.is_installed()):
+            return {"ok": False,
+                    "error": "auto-detect needs the local OCR runtime + models"}
+        path = self._latest_capture_path()
+        if not path:
+            return {"ok": False,
+                    "error": "no capture yet — hold your capture button "
+                             "in-game first"}
+        if self._busy:
+            return {"ok": False, "error": "capture already in progress"}
+        self._busy = True
+        try:
+            local = RapidOCRBackend(self.installer.python,
+                                    self.downloader.target_dir)
+            result = await local.recognize(
+                path, region=None,
+                min_confidence=float(self.settings.get("min_confidence")))
+            if not result.image_size:
+                return {"ok": False, "error": "OCR returned no image size"}
+            width, height = result.image_size
+
+            # prefer Japanese lines of some substance; fall back to any text
+            candidates = [r for r in result.regions
+                          if cleanup.looks_like_japanese(r["text"], 0.25)
+                          and len(r["text"]) >= 3] or result.regions
+            if not candidates:
+                return {"ok": False, "error": "no text detected on screen"}
+
+            left = min(r["rect"]["left"] for r in candidates) / width
+            top = min(r["rect"]["top"] for r in candidates) / height
+            right = max(r["rect"]["right"] for r in candidates) / width
+            bottom = max(r["rect"]["bottom"] for r in candidates) / height
+            pad = 0.02
+            region = {
+                "x": max(0.0, round(left - pad, 4)),
+                "y": max(0.0, round(top - pad, 4)),
+            }
+            region["w"] = min(1.0 - region["x"], round(right - left + 2 * pad, 4))
+            region["h"] = min(1.0 - region["y"], round(bottom - top + 2 * pad, 4))
+
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            return {"ok": True, "region": region, "image": b64}
+        except (CaptureError, OCRError) as e:
+            return {"ok": False, "error": str(e)}
+        finally:
+            self._busy = False
 
     # ---- native lookup (Phase C: no Yomitan needed) ------------------------
 
