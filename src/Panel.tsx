@@ -222,7 +222,13 @@ export const Panel: FC = () => {
             <PanelSectionRow>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <DialogButton
-                  style={{ flex: 1, minWidth: 0, padding: "4px 10px", fontSize: 13 }}
+                  style={{
+                    flex: "0 1 auto",
+                    width: "fit-content",
+                    whiteSpace: "nowrap",
+                    padding: "4px 10px",
+                    fontSize: 13,
+                  }}
                   onClick={() =>
                     openRegionEditor(
                       i === 0 ? "Default capture area" : `Capture area ${i + 1}`,
