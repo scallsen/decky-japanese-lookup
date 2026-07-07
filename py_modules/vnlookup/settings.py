@@ -33,6 +33,8 @@ DEFAULTS: dict[str, Any] = {
     "copy_to_clipboard": True,
     # keep last N capture screenshots for Anki cards
     "screenshot_history": 20,
+    # master switch — off by default; Anki is an opt-in feature
+    "anki_enabled": False,
     # AnkiConnect enrichment of Yomitan-created cards
     "ankiconnect_url": "http://127.0.0.1:8765",
     "anki_auto_enrich": True,

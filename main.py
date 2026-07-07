@@ -259,6 +259,8 @@ class Plugin:
         while True:
             try:
                 await asyncio.sleep(3)
+                if not self.settings.get("anki_enabled"):
+                    continue
                 if not self.settings.get("anki_auto_enrich"):
                     continue
                 pending = self._pending_capture
@@ -305,6 +307,8 @@ class Plugin:
 
     async def enrich_latest_note(self):
         """Manual fallback: attach the last capture to the newest note."""
+        if not self.settings.get("anki_enabled"):
+            return {"ok": False, "error": "Anki integration is disabled in settings"}
         pending = self._pending_capture
         if not pending:
             return {"ok": False, "error": "no capture to attach"}
@@ -482,6 +486,8 @@ class Plugin:
                                glosses: str, sentence: str):
         """Direct card creation from the native lookup panel."""
         s = self.settings
+        if not s.get("anki_enabled"):
+            return {"ok": False, "error": "Anki integration is disabled in settings"}
         fields = {}
         for field_key, value in (
             ("anki_expression_field", expression),
@@ -517,7 +523,8 @@ class Plugin:
     # ---- setup / status callables -----------------------------------------
 
     async def get_status(self):
-        anki_ok = await self.anki.is_available()
+        anki_ok = (await self.anki.is_available()
+                   if self.settings.get("anki_enabled") else False)
         probe = {}
         try:
             probe = await self.capture.probe()

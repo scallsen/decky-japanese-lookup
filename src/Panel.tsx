@@ -9,7 +9,6 @@ import {
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
 import {
-  captureAndMine,
   downloadModels,
   enrichLatestNote,
   getAllSettings,
@@ -18,7 +17,6 @@ import {
   PluginStatus,
   Region,
   setSetting,
-  testLine,
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
@@ -106,56 +104,10 @@ export const Panel: FC = () => {
 
   return (
     <>
-      <LookupSection sentence={status?.last_result?.text ?? null} />
-      <PanelSection title="Status">
-        <PanelSectionRow>
-          <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-            <div>
-              Texthooker page:{" "}
-              <b>http://localhost:{status?.delivery.port ?? 8766}/</b>
-            </div>
-            <div>
-              Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
-              {" · "}Anki:{" "}
-              <b>{status?.anki_available ? "connected" : "not running"}</b>
-            </div>
-            <div>
-              Controller:{" "}
-              <b>{status?.monitor.initialized ? "hooked" : "not found"}</b>
-              {" · "}PipeWire:{" "}
-              <b>{status?.capture?.pipewire_source ? "ok" : "no source"}</b>
-            </div>
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem
-            layout="below"
-            onClick={async () => {
-              setBusyMsg("Capturing…");
-              const r = await captureAndMine();
-              setBusyMsg(r.ok ? "" : r.error ?? "failed");
-            }}
-          >
-            Capture now (test)
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem
-            layout="below"
-            onClick={async () => {
-              const r = await testLine();
-              setBusyMsg(`Test line sent to ${r.clients} reader(s)`);
-            }}
-          >
-            Send test line to texthooker
-          </ButtonItem>
-        </PanelSectionRow>
-        {busyMsg ? (
-          <PanelSectionRow>
-            <div style={{ fontSize: 12, color: "#dcae3c" }}>{busyMsg}</div>
-          </PanelSectionRow>
-        ) : null}
-      </PanelSection>
+      <LookupSection
+        sentence={status?.last_result?.text ?? null}
+        ankiEnabled={!!settings.anki_enabled}
+      />
 
       {!setupDone && (
         <PanelSection title="Setup (one-time)">
@@ -285,80 +237,123 @@ export const Panel: FC = () => {
       <PanelSection title="Anki">
         <PanelSectionRow>
           <ToggleField
-            label="Auto-enrich new cards"
-            description="Attach the game screenshot to cards Yomitan creates"
-            checked={!!settings.anki_auto_enrich}
-            onChange={(v) => update("anki_auto_enrich", v)}
+            label="Enable Anki integration"
+            description="Off by default — turn on if you use AnkiConnect for mining"
+            checked={!!settings.anki_enabled}
+            onChange={(v) => update("anki_enabled", v)}
           />
         </PanelSectionRow>
+        {settings.anki_enabled && (
+          <>
+            <PanelSectionRow>
+              <ToggleField
+                label="Auto-enrich new cards"
+                description="Attach the game screenshot to cards Yomitan creates"
+                checked={!!settings.anki_auto_enrich}
+                onChange={(v) => update("anki_auto_enrich", v)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <DropdownItem
+                label="Card image"
+                rgOptions={ANKI_IMAGE_OPTIONS}
+                selectedOption={settings.anki_image}
+                onChange={(o) => update("anki_image", o.data)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Deck (for created cards)"
+                value={settings.anki_deck}
+                onChange={(e) => update("anki_deck", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Note type"
+                value={settings.anki_note_type}
+                onChange={(e) => update("anki_note_type", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Expression field"
+                value={settings.anki_expression_field}
+                onChange={(e) => update("anki_expression_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Reading field (blank = skip)"
+                value={settings.anki_reading_field}
+                onChange={(e) => update("anki_reading_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Glossary field (blank = skip)"
+                value={settings.anki_glossary_field}
+                onChange={(e) => update("anki_glossary_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Picture field name"
+                value={settings.anki_picture_field}
+                onChange={(e) => update("anki_picture_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <TextField
+                label="Sentence field name"
+                value={settings.anki_sentence_field}
+                onChange={(e) => update("anki_sentence_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                onClick={async () => {
+                  const r = await enrichLatestNote();
+                  setBusyMsg(
+                    r.ok ? `Attached to note ${r.note_id}` : r.error ?? "failed");
+                }}
+              >
+                Attach last capture to newest card
+              </ButtonItem>
+            </PanelSectionRow>
+            {busyMsg ? (
+              <PanelSectionRow>
+                <div style={{ fontSize: 12, color: "#dcae3c" }}>{busyMsg}</div>
+              </PanelSectionRow>
+            ) : null}
+          </>
+        )}
+      </PanelSection>
+
+      <PanelSection title="Status">
         <PanelSectionRow>
-          <DropdownItem
-            label="Card image"
-            rgOptions={ANKI_IMAGE_OPTIONS}
-            selectedOption={settings.anki_image}
-            onChange={(o) => update("anki_image", o.data)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Deck (for created cards)"
-            value={settings.anki_deck}
-            onChange={(e) => update("anki_deck", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Note type"
-            value={settings.anki_note_type}
-            onChange={(e) => update("anki_note_type", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Expression field"
-            value={settings.anki_expression_field}
-            onChange={(e) => update("anki_expression_field", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Reading field (blank = skip)"
-            value={settings.anki_reading_field}
-            onChange={(e) => update("anki_reading_field", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Glossary field (blank = skip)"
-            value={settings.anki_glossary_field}
-            onChange={(e) => update("anki_glossary_field", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Picture field name"
-            value={settings.anki_picture_field}
-            onChange={(e) => update("anki_picture_field", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <TextField
-            label="Sentence field name"
-            value={settings.anki_sentence_field}
-            onChange={(e) => update("anki_sentence_field", e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem
-            layout="below"
-            onClick={async () => {
-              const r = await enrichLatestNote();
-              setBusyMsg(
-                r.ok ? `Attached to note ${r.note_id}` : r.error ?? "failed");
-            }}
-          >
-            Attach last capture to newest card
-          </ButtonItem>
+          <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+            <div>
+              Texthooker page:{" "}
+              <b>http://localhost:{status?.delivery.port ?? 8766}/</b>
+            </div>
+            <div>
+              Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
+              {settings.anki_enabled && (
+                <>
+                  {" · "}Anki:{" "}
+                  <b>{status?.anki_available ? "connected" : "not running"}</b>
+                </>
+              )}
+            </div>
+            <div>
+              Controller:{" "}
+              <b>{status?.monitor.initialized ? "hooked" : "not found"}</b>
+              {" · "}PipeWire:{" "}
+              <b>{status?.capture?.pipewire_source ? "ok" : "no source"}</b>
+            </div>
+          </div>
         </PanelSectionRow>
       </PanelSection>
     </>

@@ -52,7 +52,10 @@ const candidatesAt = (tokens: Token[], i: number): string[] => {
   return [...new Set(cands.filter(Boolean))];
 };
 
-export const LookupSection: FC<{ sentence: string | null }> = ({ sentence }) => {
+export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }> = ({
+  sentence,
+  ankiEnabled,
+}) => {
   const [status, setStatus] = useState<LookupStatus | null>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [sel, setSel] = useState<[number, number] | null>(null); // token index range
@@ -373,19 +376,21 @@ export const LookupSection: FC<{ sentence: string | null }> = ({ sentence }) => 
                       </span>
                     ) : null}
                   </div>
-                  <DialogButton
-                    style={{
-                      width: "fit-content",
-                      minWidth: 0,
-                      padding: "4px 10px",
-                      fontSize: 13,
-                      flexShrink: 0,
-                    }}
-                    onClick={() => void addCard(e)}
-                    onOKActionDescription="Create Anki card"
-                  >
-                    + Anki
-                  </DialogButton>
+                  {ankiEnabled && (
+                    <DialogButton
+                      style={{
+                        width: "fit-content",
+                        minWidth: 0,
+                        padding: "4px 10px",
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}
+                      onClick={() => void addCard(e)}
+                      onOKActionDescription="Create Anki card"
+                    >
+                      + Anki
+                    </DialogButton>
+                  )}
                 </div>
                 <div
                   style={{
