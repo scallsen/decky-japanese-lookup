@@ -38,6 +38,37 @@ const TRIGGER_OPTIONS = [
 // bottom-third text box, so a second one probably wants more of the screen
 const NEW_AREA_REGION: Region = { x: 0.1, y: 0.08, w: 0.8, h: 0.84 };
 
+// Cheap at-a-glance preview of where a region sits on screen — a grey box
+// standing in for the display, with a blue box for the region, positioned
+// with the same x/y/w/h-as-percentage math as the visual region editor
+// (RegionEditor.tsx), just without the screenshot or drag handling.
+const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+      aspectRatio: "16 / 9",
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: 4,
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        left: `${region.x * 100}%`,
+        top: `${region.y * 100}%`,
+        width: `${region.w * 100}%`,
+        height: `${region.h * 100}%`,
+        background: "rgba(79,195,247,0.35)",
+        border: "1px solid #4fc3f7",
+        boxSizing: "border-box",
+      }}
+    />
+  </div>
+);
+
 const BACKEND_OPTIONS = [
   { data: "rapidocr", label: "Local (RapidOCR, offline)" },
   { data: "gemini", label: "Cloud (Gemini Vision)" },
@@ -184,13 +215,7 @@ export const Panel: FC = () => {
             }}
           >
             <PanelSectionRow>
-              <DropdownItem
-                label={i === 0 ? "Default" : `Area ${i + 1}`}
-                description="Trigger button"
-                rgOptions={TRIGGER_OPTIONS}
-                selectedOption={area.button ?? "off"}
-                onChange={(o) => setAreaButton(i, o.data)}
-              />
+              <AreaThumbnail region={area.region} />
             </PanelSectionRow>
             <PanelSectionRow>
               <ButtonItem
@@ -203,8 +228,17 @@ export const Panel: FC = () => {
                   )
                 }
               >
-                Set area…
+                Change area…
               </ButtonItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <DropdownItem
+                label={i === 0 ? "Default" : `Area ${i + 1}`}
+                description="Trigger button"
+                rgOptions={TRIGGER_OPTIONS}
+                selectedOption={area.button ?? "off"}
+                onChange={(o) => setAreaButton(i, o.data)}
+              />
             </PanelSectionRow>
             {i > 0 && (
               <PanelSectionRow>
