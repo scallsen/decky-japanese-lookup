@@ -240,7 +240,7 @@ export const LookupSection: FC<{ sentence: string | null; ankiEnabled: boolean }
       {!sentence ? (
         <PanelSectionRow>
           <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Capture a line first — it will appear here as tappable words.
+            Capture a sentence first, then analyze here.
           </div>
         </PanelSectionRow>
       ) : (

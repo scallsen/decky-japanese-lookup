@@ -230,7 +230,7 @@ export const Panel: FC = () => {
                   }}
                   onClick={() =>
                     openRegionEditor(
-                      i === 0 ? "Default capture area" : `Capture area ${i + 1}`,
+                      "Select the area to capture",
                       area.region,
                       (r) => setAreaRegion(i, r)
                     )
@@ -265,7 +265,7 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Off by default — turn on if you use AnkiConnect for mining"
+            description="Create cards and sync with AnkiConnect"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
           />
@@ -274,20 +274,22 @@ export const Panel: FC = () => {
           <>
             <PanelSectionRow>
               <ToggleField
-                label="Auto-enrich new cards"
+                label="Add image to card"
                 description="Attach the game screenshot to cards Yomitan creates"
                 checked={!!settings.anki_auto_enrich}
                 onChange={(v) => update("anki_auto_enrich", v)}
               />
             </PanelSectionRow>
-            <PanelSectionRow>
-              <DropdownItem
-                label="Card image"
-                rgOptions={ANKI_IMAGE_OPTIONS}
-                selectedOption={settings.anki_image}
-                onChange={(o) => update("anki_image", o.data)}
-              />
-            </PanelSectionRow>
+            {settings.anki_auto_enrich && (
+              <PanelSectionRow>
+                <DropdownItem
+                  label="Card image"
+                  rgOptions={ANKI_IMAGE_OPTIONS}
+                  selectedOption={settings.anki_image}
+                  onChange={(o) => update("anki_image", o.data)}
+                />
+              </PanelSectionRow>
+            )}
             <PanelSectionRow>
               <TextField
                 label="Deck (for created cards)"
@@ -361,7 +363,7 @@ export const Panel: FC = () => {
       <PanelSection title="Advanced setting">
         <PanelSectionRow>
           <DropdownItem
-            label="Backend"
+            label="OCR"
             rgOptions={BACKEND_OPTIONS}
             selectedOption={settings.ocr_backend}
             onChange={(o) => update("ocr_backend", o.data)}
@@ -387,8 +389,8 @@ export const Panel: FC = () => {
         </PanelSectionRow>
         <PanelSectionRow>
           <SliderField
-            label="Hold time (ms)"
-            description="How long to hold the button before capture fires"
+            label="Add capture delay"
+            description="Add a small delay when activating the capture buttons"
             value={settings.trigger_hold_ms}
             min={0}
             max={1000}
@@ -400,7 +402,7 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Open lookup after capture"
-            description="Pop the Quick Access menu when a line is read"
+            description="Automatically open the quick access menu after capture"
             checked={!!settings.auto_open_qam}
             onChange={(v) => update("auto_open_qam", v)}
           />
