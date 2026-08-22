@@ -31,21 +31,23 @@ DEFAULTS: dict[str, Any] = {
     "screenshot_history": 20,
     # master switch — off by default; Anki is an opt-in feature
     "anki_enabled": False,
-    # AnkiConnect enrichment of Yomitan-created cards
-    "ankiconnect_url": "http://127.0.0.1:8765",
-    "anki_auto_enrich": True,
-    "anki_picture_field": "Picture",
-    "anki_sentence_field": "Sentence",
-    # which image goes on the card: "full" frame or textbox "crop"
-    "anki_image": "full",
-    # native lookup → direct card creation (no Yomitan). Field names map
-    # onto the user's note type; empty field names are skipped.
+    # cards are buffered locally and exported as a batch .apkg (scanned via
+    # QR code) rather than pushed to AnkiConnect live. Field names map onto
+    # the plugin-owned note type embedded in the .apkg; empty field names
+    # are skipped.
     "anki_deck": "Mining",
     "anki_note_type": "Basic",
     "anki_expression_field": "Front",
     "anki_reading_field": "",
     "anki_glossary_field": "Back",
+    "anki_sentence_field": "Sentence",
 }
+
+# settings keys retired by past versions — dropped from stored JSON on load
+# so they don't linger forever in get_all_settings()'s output
+_DEPRECATED_KEYS = (
+    "ankiconnect_url", "anki_auto_enrich", "anki_picture_field", "anki_image",
+)
 
 
 class Settings:
@@ -65,6 +67,8 @@ class Settings:
             for key, default in DEFAULTS.items():
                 if isinstance(default, dict) and isinstance(merged.get(key), dict):
                     merged[key] = {**default, **merged[key]}
+            for key in _DEPRECATED_KEYS:
+                merged.pop(key, None)
             self._data = merged
         except (FileNotFoundError, json.JSONDecodeError):
             self._data = dict(DEFAULTS)

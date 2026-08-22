@@ -24,6 +24,11 @@ MARKER = ".vnlookup-runtime-ok"
 LOOKUP_PACKAGES = ["fugashi>=1.3", "unidic-lite>=1.0.8"]
 LOOKUP_MARKER = ".vnlookup-lookup-ok"
 
+# Anki export stack: builds .apkg files from the buffered-cards list.
+# Separate install (and marker) so the OCR/lookup stacks work without it.
+ANKI_PACKAGES = ["genanki>=0.13,<0.14"]
+ANKI_MARKER = ".vnlookup-anki-ok"
+
 
 class RuntimeInstaller:
     def __init__(self, runtime_dir: str):
@@ -47,11 +52,16 @@ class RuntimeInstaller:
         return (os.path.exists(self.python)
                 and os.path.exists(os.path.join(self.venv_dir, LOOKUP_MARKER)))
 
+    def is_anki_installed(self) -> bool:
+        return (os.path.exists(self.python)
+                and os.path.exists(os.path.join(self.venv_dir, ANKI_MARKER)))
+
     def get_status(self) -> dict:
         with self._lock:
             return {
                 "installed": self.is_installed(),
                 "lookup_installed": self.is_lookup_installed(),
+                "anki_installed": self.is_anki_installed(),
                 "installing": self._installing,
                 "step": self._step,
                 "error": self._error,
@@ -74,6 +84,9 @@ class RuntimeInstaller:
 
     def start_install_lookup(self) -> bool:
         return self._start(self._install_lookup)
+
+    def start_install_anki(self) -> bool:
+        return self._start(self._install_anki)
 
     def _set_step(self, step: str):
         with self._lock:
@@ -118,6 +131,35 @@ class RuntimeInstaller:
                 logger.warning("opencv headless swap failed; keeping default build")
             self._run([self.python, "-c", "import rapidocr, onnxruntime, cv2, PIL"],
                       "verifying imports")
+            with open(marker, "w") as f:
+                f.write("ok\n")
+            self._set_step("done")
+        except subprocess.CalledProcessError as e:
+            with self._lock:
+                self._error = (f"install step failed ({self._step}), "
+                               f"see {self.log_path}: {e}")
+            logger.error(self._error)
+        except Exception as e:
+            with self._lock:
+                self._error = f"install failed during {self._step}: {e}"
+            logger.error(self._error)
+        finally:
+            with self._lock:
+                self._installing = False
+
+    def _install_anki(self):
+        """Add the apkg-export stack to an existing venv (or create one)."""
+        try:
+            marker = os.path.join(self.venv_dir, ANKI_MARKER)
+            if os.path.exists(marker):
+                os.remove(marker)
+            if not os.path.exists(self.python):
+                self._run(["/usr/bin/python3", "-m", "venv", self.venv_dir],
+                          "creating venv")
+            pip = [self.python, "-m", "pip"]
+            self._run(pip + ["install"] + ANKI_PACKAGES, "installing genanki")
+            self._run([self.python, "-c", "import genanki"],
+                      "verifying genanki")
             with open(marker, "w") as f:
                 f.write("ok\n")
             self._set_step("done")
