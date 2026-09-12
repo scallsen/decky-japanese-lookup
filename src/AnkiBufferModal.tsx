@@ -35,6 +35,16 @@ const ROLE_SETTING_KEY: Record<Role, string> = {
 const activeRoles = (settings: Record<string, any>): Role[] =>
   ROLE_ORDER.filter((r) => !!(settings[ROLE_SETTING_KEY[r]] || "").toString().trim());
 
+// mirrors the .r-* role classes in anki_export_worker.py's _CSS: glossary
+// and sentence are the main content, reading/game are secondary reference
+// info rendered small and muted
+const BACK_ROLE_STYLE: Record<Exclude<Role, "expression">, { fontSize: number; opacity: number }> = {
+  reading: { fontSize: 11, opacity: 0.55 },
+  glossary: { fontSize: 14, opacity: 0.92 },
+  sentence: { fontSize: 14, opacity: 0.92 },
+  game: { fontSize: 10, opacity: 0.5 },
+};
+
 const CardPreview: FC<{
   card: BufferedCard;
   roles: Role[];
@@ -98,9 +108,8 @@ const CardPreview: FC<{
               <div
                 key={r}
                 style={{
-                  fontSize: r === "game" ? 11 : 12,
+                  ...BACK_ROLE_STYLE[r as Exclude<Role, "expression">],
                   whiteSpace: "pre-wrap",
-                  opacity: r === "game" ? 0.55 : 0.85,
                   textAlign: "center",
                 }}
               >
