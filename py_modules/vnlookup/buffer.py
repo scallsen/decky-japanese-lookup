@@ -61,6 +61,15 @@ class PendingCards:
     def count(self) -> int:
         return len(self._data)
 
+    def remove(self, card_id: str) -> bool:
+        """Drop one buffered card by id. Returns whether it was found."""
+        before = len(self._data)
+        self._data = [c for c in self._data if c["id"] != card_id]
+        removed = len(self._data) != before
+        if removed:
+            self.save()
+        return removed
+
     def clear(self) -> None:
         self._data = []
         self.save()

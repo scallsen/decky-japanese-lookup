@@ -512,18 +512,20 @@ export const Panel: FC = () => {
             ) : null}
 
             <PanelSectionRow>
-              <ButtonItem
-                layout="below"
-                bottomSeparator="none"
-                disabled={(status?.anki_buffered ?? 0) === 0}
-                onClick={async () => {
-                  await clearAnkiBuffer();
-                  setQrUrl(null);
-                  setBusyMsg("Buffer cleared");
-                }}
-              >
-                Clear buffer
-              </ButtonItem>
+              <div style={{ marginTop: status?.runtime?.error || qrUrl ? 0 : -8 }}>
+                <ButtonItem
+                  layout="below"
+                  bottomSeparator="none"
+                  disabled={(status?.anki_buffered ?? 0) === 0}
+                  onClick={async () => {
+                    await clearAnkiBuffer();
+                    setQrUrl(null);
+                    setBusyMsg("Buffer cleared");
+                  }}
+                >
+                  Clear buffer
+                </ButtonItem>
+              </div>
             </PanelSectionRow>
 
             {busyMsg ? (

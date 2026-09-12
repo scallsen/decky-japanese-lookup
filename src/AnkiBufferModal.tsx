@@ -4,9 +4,9 @@
 // anki_export_worker.py's genanki template, respecting which fields are
 // actually configured (a blank field-name setting is skipped there too).
 
-import { ModalRoot } from "@decky/ui";
+import { DialogButton, ModalRoot } from "@decky/ui";
 import { FC, useEffect, useState } from "react";
-import { BufferedCard, getAnkiBuffer } from "./api";
+import { BufferedCard, getAnkiBuffer, removeAnkiBufferCard } from "./api";
 
 // mirrors ROLE_ORDER / CARD_KEY in py_modules/vnlookup/anki_export_worker.py
 const ROLE_ORDER = ["expression", "reading", "glossary", "sentence", "game"] as const;
@@ -79,12 +79,27 @@ export const AnkiBufferModal: FC<{ settings: Record<string, any>; closeModal?: (
   closeModal,
 }) => {
   const [cards, setCards] = useState<BufferedCard[] | null>(null);
+  const [removing, setRemoving] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void getAnkiBuffer().then((r) => setCards(r.cards));
   }, []);
 
   const roles = activeRoles(settings);
+
+  const handleRemove = async (id: string) => {
+    setRemoving((prev) => new Set(prev).add(id));
+    try {
+      await removeAnkiBufferCard(id);
+      setCards((prev) => prev && prev.filter((c) => c.id !== id));
+    } finally {
+      setRemoving((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   return (
     <ModalRoot bAllowFullSize onCancel={closeModal} closeModal={closeModal}>
@@ -99,7 +114,18 @@ export const AnkiBufferModal: FC<{ settings: Record<string, any>; closeModal?: (
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cards.map((c) => (
-              <CardPreview key={c.id} card={c} roles={roles} />
+              <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <CardPreview card={c} roles={roles} />
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <DialogButton
+                    style={{ width: "fit-content", minWidth: 0, padding: "6px 10px", fontSize: 12 }}
+                    disabled={removing.has(c.id)}
+                    onClick={() => void handleRemove(c.id)}
+                  >
+                    {removing.has(c.id) ? "Removing…" : "Remove"}
+                  </DialogButton>
+                </div>
+              </div>
             ))}
           </div>
         )}

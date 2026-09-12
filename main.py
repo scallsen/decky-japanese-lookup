@@ -442,6 +442,10 @@ class Plugin:
     async def get_anki_buffer(self):
         return {"cards": self.anki_buffer.all()}
 
+    async def remove_anki_buffer_card(self, card_id: str):
+        self.anki_buffer.remove(card_id)
+        return {"ok": True, "buffered": self.anki_buffer.count()}
+
     async def install_anki_export_runtime(self):
         return {"started": self.installer.start_install_anki()}
 
