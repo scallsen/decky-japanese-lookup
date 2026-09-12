@@ -452,7 +452,9 @@ export const Panel: FC = () => {
                       disabled={(status?.anki_buffered ?? 0) === 0}
                       onClick={() => showModal(<AnkiBufferModal />)}
                     >
-                      <FaEye />
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <FaEye />
+                      </div>
                     </DialogButton>
                   }
                 />
