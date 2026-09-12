@@ -4,9 +4,9 @@ runtime (genanki is only installed there; nothing heavy is imported into
 the Decky process, mirroring ocr_worker.py's convention).
 
 Reads opts JSON from stdin:
-  {"cards": [{"id","expression","reading","glosses","sentence"}, ...],
+  {"cards": [{"id","expression","reading","glosses","sentence","game"}, ...],
    "deck_name", "deck_id", "note_type_name", "model_id",
-   "field_map": {"expression"|"reading"|"glossary"|"sentence": "<field name>"},
+   "field_map": {"expression"|"reading"|"glossary"|"sentence"|"game": "<field name>"},
    "out_path"}
 Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 """
@@ -14,10 +14,13 @@ Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 import json
 import sys
 
-ROLE_ORDER = ["expression", "reading", "glossary", "sentence"]
+# "game" last so it always lands on the back (afmt), never the front
+# (qfmt, which is always roles[0]) — the game a card came from is
+# reference info, not part of what you're being quizzed on.
+ROLE_ORDER = ["expression", "reading", "glossary", "sentence", "game"]
 # buffered-card dict key for each role (glossary role holds the "glosses" key)
 CARD_KEY = {"expression": "expression", "reading": "reading",
-            "glossary": "glosses", "sentence": "sentence"}
+            "glossary": "glosses", "sentence": "sentence", "game": "game"}
 
 # genanki's own default (arial, 20px, no CJK coverage) reads small on a
 # phone and can't render Japanese at all on a device with no CJK-aware

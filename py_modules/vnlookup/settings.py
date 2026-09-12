@@ -33,13 +33,17 @@ DEFAULTS: dict[str, Any] = {
     # cards are buffered locally and exported as a batch .apkg (scanned via
     # QR code) rather than pushed to AnkiConnect live. Field names map onto
     # the plugin-owned note type embedded in the .apkg; empty field names
-    # are skipped.
+    # are skipped. Only anki_deck is user-facing (Panel.tsx); the rest are
+    # fixed — no note-type/field-mapping UI, just a plugin-owned note type.
     "anki_deck": "Mining",
     "anki_note_type": "Basic",
     "anki_expression_field": "Front",
     "anki_reading_field": "",
     "anki_glossary_field": "Back",
     "anki_sentence_field": "Sentence",
+    # the running game's display name at capture time, written to the back
+    # of the card only (see ROLE_ORDER in anki_export_worker.py)
+    "anki_game_field": "Game",
 }
 
 # settings keys retired by past versions — dropped from stored JSON on load

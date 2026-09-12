@@ -89,7 +89,7 @@ export const getLookupStatus = callable<[], LookupStatus>("get_lookup_status");
 export const installLookupRuntime = callable<[], { started: boolean }>("install_lookup_runtime");
 export const importDictionaries = callable<[downloadJitendex: boolean], { started: boolean }>("import_dictionaries");
 export const createAnkiCard = callable<
-  [expression: string, reading: string, glosses: string, sentence: string],
+  [expression: string, reading: string, glosses: string, sentence: string, game: string],
   { ok: boolean; buffered?: number; error?: string }
 >("create_anki_card");
 export const clearAnkiBuffer = callable<[], { ok: boolean }>("clear_anki_buffer");

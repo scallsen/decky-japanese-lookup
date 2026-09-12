@@ -31,14 +31,16 @@ class PendingCards:
             json.dump(self._data, f, ensure_ascii=False, indent=2)
         os.replace(tmp, self.path)
 
-    def add(self, expression: str, reading: str, glosses: str, sentence: str) -> dict:
-        """Add a card, or update glosses in place if the same
+    def add(self, expression: str, reading: str, glosses: str, sentence: str,
+            game: str = "") -> dict:
+        """Add a card, or update glosses/game in place if the same
         expression/reading/sentence is already buffered (repeated +Anki
         taps on the same word don't grow the buffer)."""
         for card in self._data:
             if (card["expression"] == expression and card["reading"] == reading
                     and card["sentence"] == sentence):
                 card["glosses"] = glosses
+                card["game"] = game
                 self.save()
                 return card
         card = {
@@ -47,6 +49,7 @@ class PendingCards:
             "reading": reading,
             "glosses": glosses,
             "sentence": sentence,
+            "game": game,
         }
         self._data.append(card)
         self.save()

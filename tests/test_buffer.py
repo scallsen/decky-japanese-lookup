@@ -30,6 +30,21 @@ def test_dedupe_on_same_expression_reading_sentence(tmp_path):
     assert b.all()[0]["glosses"] == "updated gloss"
 
 
+def test_game_defaults_to_empty_string(tmp_path):
+    b = PendingCards(str(tmp_path))
+    card = b.add("言葉", "ことば", "word", "これは言葉です")
+    assert card["game"] == ""
+
+
+def test_game_stored_and_updated_on_dedupe(tmp_path):
+    b = PendingCards(str(tmp_path))
+    first = b.add("言葉", "ことば", "word", "これは言葉です", game="Game A")
+    assert first["game"] == "Game A"
+    second = b.add("言葉", "ことば", "word", "これは言葉です", game="Game B")
+    assert b.count() == 1
+    assert second["game"] == "Game B"
+
+
 def test_different_sentence_is_a_new_card(tmp_path):
     b = PendingCards(str(tmp_path))
     b.add("言葉", "ことば", "word", "これは言葉です")

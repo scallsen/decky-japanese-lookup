@@ -9,8 +9,8 @@ import {
   TextField,
   ToggleField,
 } from "@decky/ui";
-import { FC, useEffect, useRef, useState } from "react";
-import { FaGamepad } from "react-icons/fa";
+import { FC, ReactNode, useEffect, useRef, useState } from "react";
+import { FaClone, FaGamepad } from "react-icons/fa";
 import {
   clearAnkiBuffer,
   downloadModels,
@@ -96,10 +96,14 @@ const getAppIconUrl = (appid?: string | null): string | null => {
   }
 };
 
-// Small square game icon for the capture-area header; falls back to a
-// generic gamepad glyph when Steam has no cached icon for the appid (or
-// there's no appid at all, i.e. the "Default" profile).
-const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, size = 32 }) => {
+// Small square game icon; falls back to `fallbackIcon` (a generic gamepad
+// glyph by default) when Steam has no cached icon for the appid, there's no
+// appid at all (the "Default" profile), or the caller never looked one up.
+const AppThumbnail: FC<{ appid?: string | null; size?: number; fallbackIcon?: ReactNode }> = ({
+  appid,
+  size = 32,
+  fallbackIcon,
+}) => {
   const url = getAppIconUrl(appid);
   return (
     <div
@@ -121,11 +125,35 @@ const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, siz
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (
-        <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
+        fallbackIcon ?? <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
       )}
     </div>
   );
 };
+
+// Icon + name in a bordered box — reused for "which game these capture
+// areas are for" (capture-area section) and "which game gets tagged on
+// buffered cards" (Anki section).
+const GameBox: FC<{ appid?: string | null; displayName: string; fallbackIcon?: ReactNode }> = ({
+  appid,
+  displayName,
+  fallbackIcon,
+}) => (
+  <div
+    style={{
+      display: "flex",
+      gap: 10,
+      alignItems: "center",
+      padding: 6,
+      borderRadius: 4,
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.1)",
+    }}
+  >
+    <AppThumbnail appid={appid} fallbackIcon={fallbackIcon} />
+    <div style={{ fontSize: 13, fontWeight: 600 }}>{displayName}</div>
+  </div>
+);
 
 export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
@@ -304,22 +332,11 @@ export const Panel: FC = () => {
 
       <PanelSection title="Capture area">
         <PanelSectionRow>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              padding: 6,
-              borderRadius: 4,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              marginBottom: 8,
-            }}
-          >
-            <AppThumbnail appid={runningApp?.appid} />
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {runningApp ? runningApp.display_name : "Game not detected"}
-            </div>
+          <div style={{ marginBottom: 8 }}>
+            <GameBox
+              appid={runningApp?.appid}
+              displayName={runningApp ? runningApp.display_name : "Game not detected"}
+            />
           </div>
         </PanelSectionRow>
         {areas.map((area, i) => (
@@ -400,7 +417,6 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Buffer +Anki taps, then export them as a .apkg you scan onto your phone"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
             bottomSeparator={settings.anki_enabled ? "standard" : "none"}
@@ -409,53 +425,11 @@ export const Panel: FC = () => {
         {settings.anki_enabled && (
           <>
             <PanelSectionRow>
-              <TextField
-                label="Deck (for exported cards)"
-                value={settings.anki_deck}
-                onChange={(e) => update("anki_deck", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Note type"
-                value={settings.anki_note_type}
-                onChange={(e) => update("anki_note_type", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <div style={{ fontSize: 11, opacity: 0.6 }}>
-                Exporting creates/updates a plugin-owned note type with this
-                name — it won't merge into an existing note type of the same
-                name already in your collection.
-              </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Expression field"
-                value={settings.anki_expression_field}
-                onChange={(e) => update("anki_expression_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Reading field (blank = skip)"
-                value={settings.anki_reading_field}
-                onChange={(e) => update("anki_reading_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Glossary field (blank = skip)"
-                value={settings.anki_glossary_field}
-                onChange={(e) => update("anki_glossary_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
               <Field childrenLayout="below" bottomSeparator="standard">
                 <TextField
-                  label="Sentence field name"
-                  value={settings.anki_sentence_field}
-                  onChange={(e) => update("anki_sentence_field", e.target.value)}
+                  label="Deck name"
+                  value={settings.anki_deck}
+                  onChange={(e) => update("anki_deck", e.target.value)}
                 />
               </Field>
             </PanelSectionRow>
@@ -466,6 +440,15 @@ export const Panel: FC = () => {
               </div>
             </PanelSectionRow>
 
+            <PanelSectionRow>
+              <div style={{ marginBottom: 8 }}>
+                <GameBox
+                  appid={null}
+                  displayName={runningApp ? runningApp.display_name : "No game detected"}
+                  fallbackIcon={<FaClone size={18} style={{ opacity: 0.5 }} />}
+                />
+              </div>
+            </PanelSectionRow>
             <PanelSectionRow>
               <ButtonItem
                 layout="below"
@@ -519,6 +502,7 @@ export const Panel: FC = () => {
             <PanelSectionRow>
               <ButtonItem
                 layout="below"
+                bottomSeparator="none"
                 disabled={(status?.anki_buffered ?? 0) === 0}
                 onClick={async () => {
                   await clearAnkiBuffer();

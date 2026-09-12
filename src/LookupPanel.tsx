@@ -8,6 +8,7 @@ import {
   Focusable,
   PanelSection,
   PanelSectionRow,
+  Router,
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
 import {
@@ -183,8 +184,9 @@ export const LookupSection: FC<{
 
   const addCard = async (e: DictEntry) => {
     setMessage("Buffering…");
+    const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
-      e.expression, e.reading, e.glosses, sentence ?? "");
+      e.expression, e.reading, e.glosses, sentence ?? "", game);
     setMessage(r.ok ? `✓ Buffered (${e.expression}) — ${r.buffered} pending` : `✗ ${r.error}`);
   };
 
