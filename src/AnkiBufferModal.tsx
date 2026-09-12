@@ -6,6 +6,7 @@
 
 import { DialogButton, ModalRoot } from "@decky/ui";
 import { FC, useEffect, useState } from "react";
+import { FaTimes } from "react-icons/fa";
 import { BufferedCard, getAnkiBuffer, removeAnkiBufferCard } from "./api";
 
 // mirrors ROLE_ORDER / CARD_KEY in py_modules/vnlookup/anki_export_worker.py
@@ -34,20 +35,51 @@ const ROLE_SETTING_KEY: Record<Role, string> = {
 const activeRoles = (settings: Record<string, any>): Role[] =>
   ROLE_ORDER.filter((r) => !!(settings[ROLE_SETTING_KEY[r]] || "").toString().trim());
 
-const CardPreview: FC<{ card: BufferedCard; roles: Role[] }> = ({ card, roles }) => {
+const CardPreview: FC<{
+  card: BufferedCard;
+  roles: Role[];
+  onRemove: () => void;
+  removing: boolean;
+}> = ({ card, roles, onRemove, removing }) => {
   const front = roles.length ? card[ROLE_CARD_KEY[roles[0]]] : "";
   const backRoles = roles.slice(1).filter((r) => card[ROLE_CARD_KEY[r]]);
 
   return (
     <div
       style={{
+        position: "relative",
         border: "1px solid rgba(255,255,255,0.15)",
         borderRadius: 6,
         overflow: "hidden",
         background: "rgba(255,255,255,0.04)",
       }}
     >
-      <div style={{ padding: "10px 12px", fontSize: 15, fontWeight: 600, textAlign: "center" }}>
+      <DialogButton
+        style={{
+          position: "absolute",
+          top: 6,
+          right: 6,
+          width: 26,
+          height: 26,
+          minWidth: 0,
+          padding: 0,
+          borderRadius: "50%",
+        }}
+        disabled={removing}
+        onClick={onRemove}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <FaTimes size={11} />
+        </div>
+      </DialogButton>
+      <div
+        style={{
+          padding: "10px 36px 10px 12px",
+          fontSize: 15,
+          fontWeight: 600,
+          textAlign: "center",
+        }}
+      >
         {front || <span style={{ opacity: 0.5 }}>(no front field configured)</span>}
       </div>
       {backRoles.length > 0 && (
@@ -114,18 +146,13 @@ export const AnkiBufferModal: FC<{ settings: Record<string, any>; closeModal?: (
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cards.map((c) => (
-              <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <CardPreview card={c} roles={roles} />
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <DialogButton
-                    style={{ width: "fit-content", minWidth: 0, padding: "6px 10px", fontSize: 12 }}
-                    disabled={removing.has(c.id)}
-                    onClick={() => void handleRemove(c.id)}
-                  >
-                    {removing.has(c.id) ? "Removing…" : "Remove"}
-                  </DialogButton>
-                </div>
-              </div>
+              <CardPreview
+                key={c.id}
+                card={c}
+                roles={roles}
+                removing={removing.has(c.id)}
+                onRemove={() => void handleRemove(c.id)}
+              />
             ))}
           </div>
         )}
