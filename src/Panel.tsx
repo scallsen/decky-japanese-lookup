@@ -5,11 +5,13 @@ import {
   DropdownItem,
   PanelSection,
   PanelSectionRow,
+  Router,
   SliderField,
   TextField,
   ToggleField,
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
+import { FaGamepad } from "react-icons/fa";
 import {
   downloadModels,
   enrichLatestNote,
@@ -26,6 +28,11 @@ import { openRegionEditor } from "./RegionEditor";
 interface CaptureArea {
   region: Region;
   button: string | null;
+}
+
+interface CaptureProfile {
+  display_name: string;
+  areas: CaptureArea[];
 }
 
 const TRIGGER_OPTIONS = [
@@ -72,6 +79,51 @@ const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
   </div>
 );
 
+// Steam caches per-app icons locally (works offline in gaming mode) and
+// exposes them via these undocumented store globals — not in @decky/ui's
+// types, so read them off `window` directly.
+const getAppIconUrl = (appid?: string | null): string | null => {
+  if (!appid) return null;
+  try {
+    const w = window as any;
+    const overview = w.appStore?.GetAppOverviewByAppID?.(Number(appid));
+    return (overview && w.appStore?.GetIconURLForApp?.(overview)) || null;
+  } catch {
+    return null;
+  }
+};
+
+// Small square game icon for the capture-area header; falls back to a
+// generic gamepad glyph when Steam has no cached icon for the appid (or
+// there's no appid at all, i.e. the "Default" profile).
+const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, size = 32 }) => {
+  const url = getAppIconUrl(appid);
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        overflow: "hidden",
+        flexShrink: 0,
+        background: "rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {url ? (
+        <img
+          src={url}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
+      )}
+    </div>
+  );
+};
+
 const BACKEND_OPTIONS = [
   { data: "rapidocr", label: "Local (RapidOCR, offline)" },
   { data: "gemini", label: "Cloud (Gemini Vision)" },
@@ -86,6 +138,9 @@ export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
   const [busyMsg, setBusyMsg] = useState("");
+  // which profile to edit when no game is running (picker fallback) —
+  // while a game IS running its profile is picked automatically instead
+  const [manualAppId, setManualAppId] = useState<string | null>(null);
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
 
@@ -123,12 +178,39 @@ export const Panel: FC = () => {
     void setSetting(key, value);
   };
 
-  const areas: CaptureArea[] =
+  const defaultAreas: CaptureArea[] =
     Array.isArray(settings?.capture_areas) && settings.capture_areas.length > 0
       ? settings.capture_areas
       : [{ region: { x: 0.03, y: 0.62, w: 0.94, h: 0.36 }, button: "L5" }];
 
-  const updateAreas = (next: CaptureArea[]) => update("capture_areas", next);
+  const profiles: Record<string, CaptureProfile> = settings?.capture_profiles ?? {};
+  const runningApp = Router.MainRunningApp;
+  // a running game always wins over the manual picker below — once a game
+  // starts, editing snaps to it automatically
+  const editingAppId = runningApp?.appid ?? manualAppId ?? null;
+  const editingProfile = editingAppId ? profiles[editingAppId] : undefined;
+  const editingName = runningApp?.display_name ?? editingProfile?.display_name ?? null;
+  const hasCustomProfile = !!editingAppId && !!editingProfile?.areas?.length;
+  const areas: CaptureArea[] = hasCustomProfile ? editingProfile!.areas : defaultAreas;
+
+  // editing a game with no profile yet writes one on the first change,
+  // seeded from whatever Default showed — that's the "automatic save"
+  const updateAreas = (next: CaptureArea[]) => {
+    if (editingAppId) {
+      update("capture_profiles", {
+        ...profiles,
+        [editingAppId]: { display_name: editingName ?? "Unknown game", areas: next },
+      });
+    } else {
+      update("capture_areas", next);
+    }
+  };
+
+  const resetToDefault = () => {
+    if (!editingAppId) return;
+    const { [editingAppId]: _removed, ...rest } = profiles;
+    update("capture_profiles", rest);
+  };
 
   const setAreaButton = (i: number, button: string) => {
     const next = areas.map((a, idx) => {
@@ -209,6 +291,63 @@ export const Panel: FC = () => {
       )}
 
       <PanelSection title="Capture area">
+        <PanelSectionRow>
+          {runningApp ? (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "6px 10px",
+                borderRadius: 4,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                marginBottom: 8,
+              }}
+            >
+              <AppThumbnail appid={runningApp.appid} />
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                {runningApp.display_name}
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "6px 10px",
+                borderRadius: 4,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                marginBottom: 8,
+              }}
+            >
+              <AppThumbnail appid={manualAppId} />
+              <span style={{ fontSize: 12, opacity: 0.8, whiteSpace: "nowrap" }}>
+                No game running — editing:
+              </span>
+              <Dropdown
+                rgOptions={[
+                  { data: "", label: "Default" },
+                  ...Object.entries(profiles).map(([id, p]) => ({
+                    data: id,
+                    label: p.display_name || id,
+                  })),
+                ]}
+                selectedOption={manualAppId ?? ""}
+                onChange={(o) => setManualAppId(o.data || null)}
+              />
+            </div>
+          )}
+        </PanelSectionRow>
+        {hasCustomProfile && (
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={resetToDefault}>
+              Reset to Default areas
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
         {areas.map((area, i) => (
           <div
             key={i}

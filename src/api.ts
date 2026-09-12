@@ -64,7 +64,7 @@ export interface LookupStatus {
 
 export interface Region { x: number; y: number; w: number; h: number }
 
-export const captureAndMine = callable<[button?: string], { ok: boolean; error?: string }>("capture_and_mine");
+export const captureAndMine = callable<[button?: string, appid?: string], { ok: boolean; error?: string }>("capture_and_mine");
 export const getButtonState = callable<[], { success: boolean; buttons: string[] }>("get_button_state");
 export const getStatus = callable<[], PluginStatus>("get_status");
 export const getAllSettings = callable<[], Record<string, any>>("get_all_settings");
