@@ -22,12 +22,6 @@ DEFAULTS: dict[str, Any] = {
     "gemini_api_key": "",
     "gemini_model": "gemini-2.5-flash",
     "min_confidence": 0.4,
-    # cleanup options
-    "strip_speaker_name": True,
-    # trigger (read by the frontend poller)
-    "trigger_hold_ms": 250,
-    # open the Quick Access menu (lookup panel) after a successful capture
-    "auto_open_qam": True,
     # delivery — clipboard copy is done by the frontend in Steam's CEF;
     # gamescope (SteamOS >= 3.7.14) syncs it to Firefox/Yomitan
     "texthooker_port": 8766,

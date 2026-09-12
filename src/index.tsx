@@ -43,12 +43,7 @@ export default definePlugin(() => {
     const watched = areasForApp(lastAppId)
       .map((a) => a?.button)
       .filter(Boolean) as TriggerButton[];
-    watcher.configure(
-      watched,
-      typeof latestSettings.trigger_hold_ms === "number"
-        ? latestSettings.trigger_hold_ms
-        : 250
-    );
+    watcher.configure(watched, 0);
   };
 
   const applySettings = (s: Record<string, any>) => {

@@ -3,10 +3,10 @@ import {
   DialogButton,
   Dropdown,
   DropdownItem,
+  Field,
   PanelSection,
   PanelSectionRow,
   Router,
-  SliderField,
   TextField,
   ToggleField,
 } from "@decky/ui";
@@ -124,11 +124,6 @@ const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, siz
     </div>
   );
 };
-
-const BACKEND_OPTIONS = [
-  { data: "rapidocr", label: "Local (RapidOCR, offline)" },
-  { data: "gemini", label: "Cloud (Gemini Vision)" },
-];
 
 const ANKI_IMAGE_OPTIONS = [
   { data: "full", label: "Full screenshot" },
@@ -305,8 +300,12 @@ export const Panel: FC = () => {
             key={i}
             style={{
               borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              marginTop: i > 0 ? 4 : 0,
-              paddingTop: i > 0 ? 4 : 0,
+              // the previous area's "Delete" button (shown once i > 1) carries
+              // its own bottom padding, so it needs no extra margin on top of
+              // that to match the gap above the first divider (after i === 1,
+              // which follows a plain row with no built-in padding)
+              marginTop: i > 1 ? 0 : i === 1 ? 12 : 0,
+              paddingTop: i > 0 ? 12 : 0,
             }}
           >
             <PanelSectionRow>
@@ -339,49 +338,54 @@ export const Panel: FC = () => {
             </PanelSectionRow>
             {i > 0 && (
               <PanelSectionRow>
-                <ButtonItem layout="below" onClick={() => deleteArea(i)}>
+                <ButtonItem
+                  layout="below"
+                  bottomSeparator="none"
+                  onClick={() => deleteArea(i)}
+                >
                   Delete
                 </ButtonItem>
               </PanelSectionRow>
             )}
           </div>
         ))}
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={addArea}>
-            Add capture area
-          </ButtonItem>
-        </PanelSectionRow>
+        <div
+          style={{
+            borderTop: "1px solid rgba(255,255,255,0.1)",
+            // matches the area-to-area divider spacing: no extra margin
+            // above when the last area's own "Delete" button (which has its
+            // own bottom padding) precedes it, otherwise the full margin.
+            // No paddingTop below the line either — "Add capture area" is a
+            // ButtonItem, which (like Delete) already carries its own top
+            // padding.
+            marginTop: areas.length > 1 ? 0 : 12,
+          }}
+        >
+          <PanelSectionRow>
+            <ButtonItem layout="below" bottomSeparator="none" onClick={addArea}>
+              Add capture area
+            </ButtonItem>
+          </PanelSectionRow>
+        </div>
       </PanelSection>
 
       <PanelSection title="Anki">
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Create cards and sync with AnkiConnect"
+            description="Create cards from lookups, and enrich cards Yomitan creates"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
+            bottomSeparator={settings.anki_enabled ? "standard" : "none"}
           />
         </PanelSectionRow>
         {settings.anki_enabled && (
           <>
             <PanelSectionRow>
-              <ToggleField
-                label="Add image to card"
-                description="Attach the game screenshot to cards Yomitan creates"
-                checked={!!settings.anki_auto_enrich}
-                onChange={(v) => update("anki_auto_enrich", v)}
-              />
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                CARD CREATION (built-in dictionary only)
+              </div>
             </PanelSectionRow>
-            {settings.anki_auto_enrich && (
-              <PanelSectionRow>
-                <DropdownItem
-                  label="Card image"
-                  rgOptions={ANKI_IMAGE_OPTIONS}
-                  selectedOption={settings.anki_image}
-                  onChange={(o) => update("anki_image", o.data)}
-                />
-              </PanelSectionRow>
-            )}
             <PanelSectionRow>
               <TextField
                 label="Deck (for created cards)"
@@ -411,10 +415,26 @@ export const Panel: FC = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
-              <TextField
-                label="Glossary field (blank = skip)"
-                value={settings.anki_glossary_field}
-                onChange={(e) => update("anki_glossary_field", e.target.value)}
+              <Field childrenLayout="below" bottomSeparator="standard">
+                <TextField
+                  label="Glossary field (blank = skip)"
+                  value={settings.anki_glossary_field}
+                  onChange={(e) => update("anki_glossary_field", e.target.value)}
+                />
+              </Field>
+            </PanelSectionRow>
+
+            <PanelSectionRow>
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                SCREENSHOT &amp; SENTENCE (any card, incl. Yomitan's)
+              </div>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <DropdownItem
+                label="Card image"
+                rgOptions={ANKI_IMAGE_OPTIONS}
+                selectedOption={settings.anki_image}
+                onChange={(o) => update("anki_image", o.data)}
               />
             </PanelSectionRow>
             <PanelSectionRow>
@@ -432,8 +452,17 @@ export const Panel: FC = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
+              <ToggleField
+                label="Auto-attach to Yomitan's cards"
+                description="As Yomitan creates a card, fill in its screenshot and sentence automatically"
+                checked={!!settings.anki_auto_enrich}
+                onChange={(v) => update("anki_auto_enrich", v)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
               <ButtonItem
                 layout="below"
+                bottomSeparator="none"
                 onClick={async () => {
                   const r = await enrichLatestNote();
                   setBusyMsg(
@@ -452,56 +481,14 @@ export const Panel: FC = () => {
         )}
       </PanelSection>
 
-      <PanelSection title="Advanced setting">
+      <PanelSection title="Advanced settings">
         <PanelSectionRow>
-          <DropdownItem
-            label="OCR"
-            rgOptions={BACKEND_OPTIONS}
-            selectedOption={settings.ocr_backend}
-            onChange={(o) => update("ocr_backend", o.data)}
-          />
-        </PanelSectionRow>
-        {settings.ocr_backend === "gemini" && (
-          <PanelSectionRow>
-            <TextField
-              label="Gemini API key"
-              value={settings.gemini_api_key}
-              bIsPassword
-              onChange={(e) => update("gemini_api_key", e.target.value)}
-            />
-          </PanelSectionRow>
-        )}
-        <PanelSectionRow>
-          <ToggleField
-            label="Strip speaker name"
-            description="Remove 【Name】 / Name「 prefixes before lookup"
-            checked={!!settings.strip_speaker_name}
-            onChange={(v) => update("strip_speaker_name", v)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label="Add capture delay"
-            description="Add a small delay when activating the capture buttons"
-            value={settings.trigger_hold_ms}
-            min={0}
-            max={1000}
-            step={50}
-            showValue
-            onChange={(v) => update("trigger_hold_ms", v)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label="Open lookup after capture"
-            description="Automatically open the quick access menu after capture"
-            checked={!!settings.auto_open_qam}
-            onChange={(v) => update("auto_open_qam", v)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={() => update("capture_profiles", {})}>
-            Delete capture areas
+          <ButtonItem
+            layout="below"
+            bottomSeparator="none"
+            onClick={() => update("capture_profiles", {})}
+          >
+            Delete all capture areas
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
