@@ -218,8 +218,7 @@ class Plugin:
         if dropped:
             logger.info(f"dropped UI fragments: {dropped}")
             result.regions = kept
-        cleaned = cleanup.clean_ocr_text(
-            raw_text, remove_speaker=bool(self.settings.get("strip_speaker_name")))
+        cleaned = cleanup.clean_ocr_text(raw_text, remove_speaker=False)
 
         if not cleaned:
             # total OCR miss: nothing detected in the region. Still record
@@ -258,7 +257,7 @@ class Plugin:
             "confidence": round(confidence, 3),
             "clients": self.delivery.client_count,
             "copy_to_clipboard": bool(self.settings.get("copy_to_clipboard")),
-            "auto_open_qam": bool(self.settings.get("auto_open_qam")),
+            "auto_open_qam": True,
             "warning": warning,
         }
         self._last_result = payload
