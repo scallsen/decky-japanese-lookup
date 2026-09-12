@@ -245,6 +245,13 @@ export const LookupSection: FC<{
             <div style={{ fontSize: 11, color: "#e74c3c" }}>{d.error}</div>
           </PanelSectionRow>
         ) : null}
+        <PanelSectionRow>
+          <div style={{ fontSize: 10, opacity: 0.5 }}>
+            Dictionary data: Jitendex (jitendex.org, CC BY-SA 4.0), built from
+            JMdict/EDICT (edrdg.org) and Tatoeba. Full credits under "About /
+            sources" in the plugin's settings panel.
+          </div>
+        </PanelSectionRow>
       </PanelSection>
     );
   }

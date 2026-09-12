@@ -1,7 +1,8 @@
 """Screen capture inside gamescope, via the PipeWire video source.
 
-Ported from cat-in-a-box/Decky-Translator. The plugin backend runs under
-plugin_loader.service with no graphical environment, so we synthesize one
+Ported from cat-in-a-box/Decky-Translator, GPL-3.0-or-later — see the
+project LICENSE. The plugin backend runs under plugin_loader.service with
+no graphical environment, so we synthesize one
 (XDG_RUNTIME_DIR / WAYLAND_DISPLAY / DBUS address) and read frames from
 gamescope's PipeWire Video/Source node with gst-launch-1.0.
 

@@ -435,6 +435,20 @@ export const Panel: FC = () => {
           </div>
         </PanelSectionRow>
       </PanelSection>
+
+      <PanelSection title="About / sources">
+        <PanelSectionRow>
+          <div style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
+            VN Lookup is GPL-3.0-or-later; capture, controller-hook, and
+            overlay code are ported from Decky-Translator (cat-in-a-box).
+            The built-in dictionary downloads Jitendex (jitendex.org, CC
+            BY-SA 4.0), built from JMdict/EDICT by the Electronic Dictionary
+            Research and Development Group (edrdg.org) and Tatoeba example
+            sentences (CC BY 2.0 FR). Full credits and license in the
+            project README/LICENSE on GitHub.
+          </div>
+        </PanelSectionRow>
+      </PanelSection>
     </>
   );
 };

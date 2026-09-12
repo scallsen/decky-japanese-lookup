@@ -124,6 +124,80 @@ def filter_ui_regions(regions):
     return kept, dropped
 
 
+def group_into_rows(regions):
+    """Group regions into visual text rows by vertical (y) overlap. Each row
+    is sorted left-to-right; rows are sorted top-to-bottom by average top.
+
+    A flat sort by (top, left) alone is not reading order: when one line
+    gets split into multiple detection boxes (a quote mark, a tall kanji, or
+    just detector noise nudges one fragment's top a few px off its
+    neighbors), a pure top-sort can place a same-line fragment before the
+    one visually to its left, scrambling the sentence. Grouping by row
+    first, and only then sorting within/across rows, fixes that.
+    """
+    n = len(regions)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i, j):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[ri] = rj
+
+    def y_overlap(a, b):
+        top = max(a["rect"]["top"], b["rect"]["top"])
+        bottom = min(a["rect"]["bottom"], b["rect"]["bottom"])
+        return max(0, bottom - top)
+
+    for i in range(n):
+        hi = regions[i]["rect"]["bottom"] - regions[i]["rect"]["top"]
+        for j in range(i + 1, n):
+            hj = regions[j]["rect"]["bottom"] - regions[j]["rect"]["top"]
+            if hi <= 0 or hj <= 0:
+                continue
+            if y_overlap(regions[i], regions[j]) >= 0.5 * min(hi, hj):
+                union(i, j)
+
+    groups = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(regions[i])
+
+    rows = list(groups.values())
+    for row in rows:
+        row.sort(key=lambda r: r["rect"]["left"])
+    rows.sort(key=lambda row: sum(r["rect"]["top"] for r in row) / len(row))
+    return rows
+
+
+def reading_order(regions):
+    """Flatten `regions` into correct top-to-bottom, left-to-right order."""
+    return [r for row in group_into_rows(regions) for r in row]
+
+
+def drop_ui_chrome_rows(regions, max_chrome_len: int = 10):
+    """Drop rows of 2+ short, separate fragments sharing a line — a VN
+    button/hint bar (Auto | Skip | Log | Option), as opposed to a single
+    wide dialogue line. Used by detect_region so the auto-suggested capture
+    box doesn't sweep in a hint bar sitting near the text box: it's easy to
+    OCR as "real" Japanese text, but it isn't the dialogue.
+
+    A real multi-region same-line dialogue split is rare and, when the
+    detector does split a long line in two, each half is still long — so
+    length is what tells a button row apart from dialogue, not row-sharing
+    alone.
+    """
+    drop_ids = set()
+    for row in group_into_rows(regions):
+        if len(row) >= 2 and all(len(r["text"]) <= max_chrome_len for r in row):
+            drop_ids.update(id(r) for r in row)
+    return [r for r in regions if id(r) not in drop_ids]
+
+
 def looks_like_japanese(text: str, threshold: float = 0.3) -> bool:
     """Heuristic used to flag 'OCR returned something, but probably garbage'."""
     if not text:

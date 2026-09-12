@@ -16,6 +16,7 @@ import os
 import urllib.error
 import urllib.request
 
+from . import cleanup
 from .net import ssl_context
 
 logger = logging.getLogger(__name__)
@@ -39,8 +40,7 @@ class OCRResult:
 
     @property
     def text(self) -> str:
-        ordered = sorted(self.regions,
-                         key=lambda r: (r["rect"]["top"], r["rect"]["left"]))
+        ordered = cleanup.reading_order(self.regions)
         return "\n".join(r["text"] for r in ordered)
 
     @property

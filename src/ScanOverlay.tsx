@@ -4,6 +4,10 @@
 // the overlay itself being photographed (unlike the old status overlay,
 // which had to hide itself during the "capturing" stage for that reason).
 // Cleared as soon as the result (or an error) comes back.
+//
+// The useUIComposition hook below (the findModuleChild lookup and
+// UIComposition enum) is ported from cat-in-a-box/Decky-Translator's
+// Overlay.tsx, GPL-3.0-or-later — see the project LICENSE.
 
 import { findModuleChild } from "@decky/ui";
 import { addEventListener, removeEventListener } from "@decky/api";

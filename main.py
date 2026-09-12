@@ -420,6 +420,12 @@ class Plugin:
             candidates = [r for r in result.regions
                           if cleanup.looks_like_japanese(r["text"], 0.25)
                           and len(r["text"]) >= 3] or result.regions
+            # drop button/hint bars (Auto | Skip | Log…) sitting near the
+            # text box — they OCR as real Japanese, so the length filter
+            # above doesn't catch them; only their layout does
+            without_chrome = cleanup.drop_ui_chrome_rows(candidates)
+            if without_chrome:
+                candidates = without_chrome
             if not candidates:
                 return {"ok": False, "error": "no text detected on screen"}
 

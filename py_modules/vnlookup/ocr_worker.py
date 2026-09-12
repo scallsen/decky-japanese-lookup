@@ -55,6 +55,16 @@ def _load_and_crop(image_path, region, crop_out):
     return img, offset
 
 
+# A tight, text-height-only crop starves the detector of the spatial context
+# it needs to group characters into full-line boxes — small VN text boxes
+# reliably fragment into garbage without some margin, even though the tight
+# crop looks fine to a human. Pad with solid white rather than more of the
+# real frame: it gives the detector the same margin without ever risking
+# pulling in real neighboring screen content (a name tag, a UI element)
+# that a real-pixel border could hand it as a spurious detection.
+OCR_DETECTION_PAD_PX = 56
+
+
 def cmd_recognize(opts):
     image_path = opts["image_path"]
     models_dir = opts["models_dir"]
@@ -66,7 +76,10 @@ def cmd_recognize(opts):
         _fail(f"image not found: {image_path}", regions=[])
 
     try:
-        img, _ = _load_and_crop(image_path, region, crop_out)
+        from PIL import ImageOps
+        cropped, _ = _load_and_crop(image_path, region, crop_out)
+        img = (ImageOps.expand(cropped, OCR_DETECTION_PAD_PX, fill=(255, 255, 255))
+              if region else cropped)
     except Exception as e:
         _fail(f"image load/crop failed: {e}", regions=[])
 
