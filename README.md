@@ -11,7 +11,8 @@ built-in dictionary, or via Yomitan in Firefox.
 
 Built on the shoulders of
 [Decky-Translator](https://github.com/cat-in-a-box/Decky-Translator) (capture,
-hidraw trigger, and overlay techniques are ported from it) and the research in
+hidraw trigger, and overlay code are ported from it — see
+[Credits](#credits--data-sources)) and the research in
 [rentry.co/deckmining](https://rentry.co/deckmining).
 
 ---
@@ -149,3 +150,48 @@ panel to do it manually.
   problem, so prefer it if clipboard delivery seems flaky.
 - Capture region and hold time may need tuning per game (sliders +
   "Capture now" in the panel).
+
+---
+
+## Credits & data sources
+
+**Code.** Screen capture, the hidraw back-button monitor, and the in-game
+overlay's UI-composition hook are ported from
+[Decky-Translator](https://github.com/cat-in-a-box/Decky-Translator) by
+Alexander Timoshuk, licensed GPL-3.0. Because of that, this whole project is
+licensed **GPL-3.0-or-later** (see [LICENSE](LICENSE)) rather than a more
+permissive license — anyone redistributing a modified build needs to keep it
+open under the same terms. Capture-region tuning is informed by the research
+at [rentry.co/deckmining](https://rentry.co/deckmining). Project scaffolding
+comes from
+[decky-plugin-template](https://github.com/SteamDeckHomebrew/decky-plugin-template).
+
+**Dictionary data.** The plugin ships no dictionary — the built-in lookup
+downloads and imports [Jitendex](https://jitendex.org/) (or any other
+Yomitan-format dictionary you supply) at runtime, into your own local SQLite
+database. Jitendex itself is built from, and credits:
+
+- [JMdict/EDICT](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)
+  by the [Electronic Dictionary Research and Development Group](https://www.edrdg.org/)
+  at Monash University — used under EDRDG's [licence terms](https://www.edrdg.org/edrdg/licence.html).
+- [Tatoeba](https://tatoeba.org/) example sentences (CC BY 2.0 FR).
+- [JmdictFurigana](https://github.com/Doublevil/JmdictFurigana) furigana data
+  (CC BY-SA).
+- Jitendex's own compiled data is CC BY-SA 4.0 —
+  see [jitendex.org/pages/legal](https://jitendex.org/pages/legal.html).
+
+The dictionary format (and the fallback lookup path) is
+[Yomitan](https://github.com/yomidevs/yomitan)'s.
+
+**Other runtime dependencies**, installed on-device rather than bundled:
+[RapidOCR](https://github.com/RapidAI/RapidOCR) and
+[ONNX Runtime](https://github.com/microsoft/onnxruntime) (Apache-2.0 / MIT)
+for on-device OCR; [fugashi](https://github.com/polm/fugashi) +
+[unidic-lite](https://github.com/polm/unidic-lite) for Japanese tokenization;
+[AnkiConnect](https://github.com/FooSoft/anki-connect) for card creation.
+
+---
+
+## License
+
+GPL-3.0-or-later — see [LICENSE](LICENSE).

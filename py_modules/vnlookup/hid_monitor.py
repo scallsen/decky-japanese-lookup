@@ -1,8 +1,9 @@
 """Steam Deck controller button monitor via /dev/hidraw.
 
-Ported from cat-in-a-box/Decky-Translator (main.py HidrawButtonMonitor).
-Reading raw HID reports is what makes the back buttons (L4/L5/R4/R5)
-visible at all — Steam intercepts them before any higher-level API.
+Ported from cat-in-a-box/Decky-Translator (main.py HidrawButtonMonitor),
+GPL-3.0-or-later — see the project LICENSE. Reading raw HID reports is
+what makes the back buttons (L4/L5/R4/R5) visible at all — Steam
+intercepts them before any higher-level API.
 
 Only the Deck's built-in controller (VID 28DE / PID 1205, interface :1.2)
 and the InputPlumber virtual controller (PID 12FB) are supported.

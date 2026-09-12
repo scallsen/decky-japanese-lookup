@@ -74,7 +74,10 @@ def flatten_content(node) -> str:
             return ""  # furigana annotations read as duplicated kana inline
         semantic = (node.get("data") or {}).get("content", "")
         if semantic == "attribution":
-            return ""  # JMdict/Tatoeba credit links — shown as a footer instead
+            # per-gloss JMdict/Tatoeba credit links; dropped here since every
+            # entry already carries the dict title, and full acknowledgement
+            # lives in the plugin's "About / sources" settings section
+            return ""
         inner = flatten_content(node.get("content"))
         if tag == "li":
             inner = "• " + inner.strip() + "\n"
