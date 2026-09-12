@@ -3,6 +3,7 @@ import {
   DialogButton,
   Dropdown,
   DropdownItem,
+  Field,
   PanelSection,
   PanelSectionRow,
   Router,
@@ -372,7 +373,7 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Create cards and sync with AnkiConnect"
+            description="Create cards from lookups, and enrich cards Yomitan creates"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
             bottomSeparator={settings.anki_enabled ? "standard" : "none"}
@@ -381,23 +382,10 @@ export const Panel: FC = () => {
         {settings.anki_enabled && (
           <>
             <PanelSectionRow>
-              <ToggleField
-                label="Add image to card"
-                description="Attach the game screenshot to cards Yomitan creates"
-                checked={!!settings.anki_auto_enrich}
-                onChange={(v) => update("anki_auto_enrich", v)}
-              />
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                CARD CREATION (built-in dictionary only)
+              </div>
             </PanelSectionRow>
-            {settings.anki_auto_enrich && (
-              <PanelSectionRow>
-                <DropdownItem
-                  label="Card image"
-                  rgOptions={ANKI_IMAGE_OPTIONS}
-                  selectedOption={settings.anki_image}
-                  onChange={(o) => update("anki_image", o.data)}
-                />
-              </PanelSectionRow>
-            )}
             <PanelSectionRow>
               <TextField
                 label="Deck (for created cards)"
@@ -427,10 +415,26 @@ export const Panel: FC = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
-              <TextField
-                label="Glossary field (blank = skip)"
-                value={settings.anki_glossary_field}
-                onChange={(e) => update("anki_glossary_field", e.target.value)}
+              <Field childrenLayout="below" bottomSeparator="standard">
+                <TextField
+                  label="Glossary field (blank = skip)"
+                  value={settings.anki_glossary_field}
+                  onChange={(e) => update("anki_glossary_field", e.target.value)}
+                />
+              </Field>
+            </PanelSectionRow>
+
+            <PanelSectionRow>
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                SCREENSHOT &amp; SENTENCE (any card, incl. Yomitan's)
+              </div>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <DropdownItem
+                label="Card image"
+                rgOptions={ANKI_IMAGE_OPTIONS}
+                selectedOption={settings.anki_image}
+                onChange={(o) => update("anki_image", o.data)}
               />
             </PanelSectionRow>
             <PanelSectionRow>
@@ -448,8 +452,17 @@ export const Panel: FC = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
+              <ToggleField
+                label="Auto-attach to Yomitan's cards"
+                description="As Yomitan creates a card, fill in its screenshot and sentence automatically"
+                checked={!!settings.anki_auto_enrich}
+                onChange={(v) => update("anki_auto_enrich", v)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
               <ButtonItem
                 layout="below"
+                bottomSeparator="none"
                 onClick={async () => {
                   const r = await enrichLatestNote();
                   setBusyMsg(
