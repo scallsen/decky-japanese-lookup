@@ -7,7 +7,9 @@
 A [Decky Loader](https://decky.xyz/) plugin: hold a back button while reading a
 visual novel, and the current text-box line is screenshot-captured, OCR'd
 on-device, cleaned up, and turned into an Anki card — either directly via a
-built-in dictionary, or via Yomitan in Firefox.
+built-in dictionary (buffered locally, then exported as a `.apkg` you scan
+onto your phone with AnkiMobile/AnkiDroid — no AnkiConnect needed), or via
+Yomitan in Firefox.
 
 Built on the shoulders of
 [Decky-Translator](https://github.com/cat-in-a-box/Decky-Translator) (capture,
@@ -47,9 +49,21 @@ ssh -t deck@steamdeck.local \
   'curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh'
 ```
 
-### 3. Anki (required — both lookup paths create cards via AnkiConnect)
+### 3. Anki
 
-Still in Desktop Mode:
+The built-in dictionary path needs **no Anki setup on the Deck at all** —
+cards are buffered locally and exported as a single `.apkg` on demand,
+served briefly over your LAN and rendered as a QR code you scan straight
+into [AnkiMobile](https://apps.apple.com/app/ankimobile-flashcards/id373493387)
+or [AnkiDroid](https://play.google.com/store/apps/details?id=com.ichi2.anki)
+on your phone. Nothing needs to be running on the Deck at capture or export
+time.
+
+The rest of this section is only needed if you also want the **Yomitan
+fallback** (Part 4), which creates cards through Yomitan's own Anki
+integration and does need a desktop Anki with AnkiConnect running on the
+Deck — skip to [Part 4](#4-firefox--yomitan-optional--only-for-the-fallback-mining-flow)
+if you don't:
 
 ```bash
 flatpak install -y flathub net.ankiweb.Anki
@@ -69,8 +83,8 @@ restart Anki.
 
 ### 4. Firefox + Yomitan (optional — only for the fallback mining flow)
 
-Skip this if you're fine using the plugin's built-in dictionary (Part 3
-below).
+Skip this if you're fine using the plugin's built-in dictionary — it needs
+none of this (see Part 3 above).
 
 ```bash
 flatpak install -y flathub org.mozilla.firefox
@@ -86,8 +100,8 @@ Then in Firefox:
 2. Yomitan Settings → **Clipboard**: enable both *background clipboard text
    monitoring* and *search page clipboard text monitoring*.
 3. Yomitan Settings → **Anki**: enable, URL `http://127.0.0.1:8765`, map your
-   note type's fields. Leave the Picture field **unmapped** — the plugin
-   fills it with the actual game screenshot after card creation.
+   note type's fields. This talks directly to AnkiConnect — the plugin has
+   no part in it and doesn't attach a screenshot to these cards.
 4. Set Firefox's homepage to `http://localhost:8766/` (the plugin's built-in
    texthooker page).
 
@@ -127,17 +141,23 @@ Open the Quick Access menu (…) → VN Lookup:
 
 **Built-in dictionary (no Firefox needed):** hold the capture button (**L5**
 by default) over a text box → the line appears in the VN Lookup panel split
-into tappable word chips → tap a chip for a definition → **➕ Create Anki
-card** makes the card directly, with the sentence and game screenshot
-attached automatically. First time, run **Install lookup runtime** and
-**Download dictionary** from the Lookup section of the panel.
+into tappable word chips → tap a chip for a definition → **➕ Anki** buffers
+the card locally (nothing is sent anywhere yet). First time, run **Install
+lookup runtime** and **Download dictionary** from the Lookup section of the
+panel.
+
+When you're ready to bring cards over to your phone, open the panel's
+**Anki** section and tap **Export via QR** (first tap installs the small
+export runtime, ~5 MB) — it packages everything buffered into one `.apkg`,
+serves it briefly over your LAN, and shows a QR code. Scan it, tap "Open in
+Anki" on your phone, and the cards import. The buffer isn't cleared
+automatically, so you can keep adding to it across sessions — use **Clear
+buffer** once you've confirmed the import.
 
 **Yomitan fallback:** hold the capture button, switch to Firefox — the line
 is on the texthooker page and Yomitan's search may already be open — hover
-and create the card as usual. The plugin watches AnkiConnect and attaches
-the game screenshot to the new note within a few seconds. If Anki wasn't
-running at capture time, use **"Attach last capture to newest card"** in the
-panel to do it manually.
+and create the card as usual. This talks straight to AnkiConnect (Part 3
+above), independently of the plugin's own buffer/export flow.
 
 ---
 
@@ -150,6 +170,9 @@ panel to do it manually.
   problem, so prefer it if clipboard delivery seems flaky.
 - Capture region and hold time may need tuning per game (sliders +
   "Capture now" in the panel).
+- Exported cards carry the sentence and dictionary fields only — no game
+  screenshot. Dropping AnkiConnect meant dropping the live enrichment step
+  that used to attach it; may come back to the export flow later.
 
 ---
 
@@ -188,7 +211,10 @@ The dictionary format (and the fallback lookup path) is
 [ONNX Runtime](https://github.com/microsoft/onnxruntime) (Apache-2.0 / MIT)
 for on-device OCR; [fugashi](https://github.com/polm/fugashi) +
 [unidic-lite](https://github.com/polm/unidic-lite) for Japanese tokenization;
-[AnkiConnect](https://github.com/FooSoft/anki-connect) for card creation.
+[genanki](https://github.com/kerrickstaley/genanki) (MIT) for building the
+exported `.apkg`. The Yomitan fallback path (optional) additionally relies
+on [AnkiConnect](https://github.com/FooSoft/anki-connect), installed as an
+Anki add-on rather than by the plugin.
 
 ---
 

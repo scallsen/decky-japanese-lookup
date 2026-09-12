@@ -8,6 +8,7 @@ import {
   Focusable,
   PanelSection,
   PanelSectionRow,
+  Router,
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
 import {
@@ -182,10 +183,11 @@ export const LookupSection: FC<{
   };
 
   const addCard = async (e: DictEntry) => {
-    setMessage("Creating card…");
+    setMessage("Buffering…");
+    const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
-      e.expression, e.reading, e.glosses, sentence ?? "");
-    setMessage(r.ok ? `✓ Card created (${e.expression})` : `✗ ${r.error}`);
+      e.expression, e.reading, e.glosses, sentence ?? "", game);
+    setMessage(r.ok ? `✓ Buffered (${e.expression}) — ${r.buffered} pending` : `✗ ${r.error}`);
   };
 
   // ---- setup states ------------------------------------------------------
@@ -383,7 +385,7 @@ export const LookupSection: FC<{
                   }}
                   tabIndex={0}
                   onActivate={ankiEnabled ? () => void addCard(e) : undefined}
-                  onOKActionDescription={ankiEnabled ? "Create Anki card" : undefined}
+                  onOKActionDescription={ankiEnabled ? "Buffer Anki card" : undefined}
                 >
                   {/* the entry itself is the gamepad-focus/scroll-into-view
                       target (tabIndex here, not just on the +Anki button) so

@@ -2,29 +2,33 @@ import {
   ButtonItem,
   DialogButton,
   Dropdown,
-  DropdownItem,
   Field,
   PanelSection,
   PanelSectionRow,
   Router,
+  showModal,
   TextField,
   ToggleField,
 } from "@decky/ui";
-import { FC, useEffect, useRef, useState } from "react";
-import { FaGamepad } from "react-icons/fa";
+import { FC, ReactNode, useEffect, useRef, useState } from "react";
+import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
+  clearAnkiBuffer,
   downloadModels,
-  enrichLatestNote,
+  exportAnkiBuffer,
   getAllSettings,
   getStatus,
+  installAnkiExportRuntime,
   installRuntime,
   PluginStatus,
   Region,
   setSetting,
   UNKNOWN_APP_KEY,
 } from "./api";
+import { AnkiBufferModal } from "./AnkiBufferModal";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
+import { QrCode } from "./QrCode";
 
 interface CaptureArea {
   region: Region;
@@ -94,10 +98,14 @@ const getAppIconUrl = (appid?: string | null): string | null => {
   }
 };
 
-// Small square game icon for the capture-area header; falls back to a
-// generic gamepad glyph when Steam has no cached icon for the appid (or
-// there's no appid at all, i.e. the "Default" profile).
-const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, size = 32 }) => {
+// Small square game icon; falls back to `fallbackIcon` (a generic gamepad
+// glyph by default) when Steam has no cached icon for the appid, there's no
+// appid at all (the "Default" profile), or the caller never looked one up.
+const AppThumbnail: FC<{ appid?: string | null; size?: number; fallbackIcon?: ReactNode }> = ({
+  appid,
+  size = 32,
+  fallbackIcon,
+}) => {
   const url = getAppIconUrl(appid);
   return (
     <div
@@ -119,23 +127,74 @@ const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, siz
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (
-        <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
+        fallbackIcon ?? <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
       )}
     </div>
   );
 };
 
-const ANKI_IMAGE_OPTIONS = [
-  { data: "full", label: "Full screenshot" },
-  { data: "crop", label: "Text box crop" },
-];
+// Icon + name in a bordered box — reused for "which game these capture
+// areas are for" (capture-area section) and "which game gets tagged on
+// buffered cards" (Anki section).
+const GameBox: FC<{
+  appid?: string | null;
+  displayName: string;
+  fallbackIcon?: ReactNode;
+  action?: ReactNode;
+}> = ({ appid, displayName, fallbackIcon, action }) => (
+  <div
+    style={{
+      display: "flex",
+      gap: 10,
+      alignItems: "center",
+      padding: 6,
+      borderRadius: 4,
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.1)",
+    }}
+  >
+    <AppThumbnail appid={appid} fallbackIcon={fallbackIcon} />
+    <div style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{displayName}</div>
+    {action}
+  </div>
+);
 
 export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
   const [busyMsg, setBusyMsg] = useState("");
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
+
+  useEffect(() => {
+    if (!qrUrl) return;
+    const t = setTimeout(() => setQrUrl(null), 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [qrUrl]);
+
+  const handleExport = async () => {
+    setBusyMsg("");
+    if (!status?.runtime?.anki_installed) {
+      await installAnkiExportRuntime();
+      setBusyMsg("Installing…");
+      return;
+    }
+    setExporting(true);
+    setQrUrl(null);
+    try {
+      const r = await exportAnkiBuffer();
+      if (r.ok && r.url) {
+        setQrUrl(r.url);
+        setBusyMsg(`Exported ${r.count} card(s) — scan to import`);
+      } else {
+        setBusyMsg(r.error ?? "export failed");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const refreshStatus = async () => {
     try {
@@ -277,22 +336,11 @@ export const Panel: FC = () => {
 
       <PanelSection title="Capture area">
         <PanelSectionRow>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              padding: 6,
-              borderRadius: 4,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              marginBottom: 8,
-            }}
-          >
-            <AppThumbnail appid={runningApp?.appid} />
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {runningApp ? runningApp.display_name : "Game not detected"}
-            </div>
+          <div style={{ marginBottom: 8 }}>
+            <GameBox
+              appid={runningApp?.appid}
+              displayName={runningApp ? runningApp.display_name : "Game not detected"}
+            />
           </div>
         </PanelSectionRow>
         {areas.map((area, i) => (
@@ -373,7 +421,6 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Create cards from lookups, and enrich cards Yomitan creates"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
             bottomSeparator={settings.anki_enabled ? "standard" : "none"}
@@ -382,96 +429,103 @@ export const Panel: FC = () => {
         {settings.anki_enabled && (
           <>
             <PanelSectionRow>
-              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                CARD CREATION (built-in dictionary only)
-              </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Deck (for created cards)"
-                value={settings.anki_deck}
-                onChange={(e) => update("anki_deck", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Note type"
-                value={settings.anki_note_type}
-                onChange={(e) => update("anki_note_type", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Expression field"
-                value={settings.anki_expression_field}
-                onChange={(e) => update("anki_expression_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Reading field (blank = skip)"
-                value={settings.anki_reading_field}
-                onChange={(e) => update("anki_reading_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
               <Field childrenLayout="below" bottomSeparator="standard">
                 <TextField
-                  label="Glossary field (blank = skip)"
-                  value={settings.anki_glossary_field}
-                  onChange={(e) => update("anki_glossary_field", e.target.value)}
+                  label="Deck name"
+                  value={settings.anki_deck}
+                  onChange={(e) => update("anki_deck", e.target.value)}
                 />
               </Field>
             </PanelSectionRow>
 
             <PanelSectionRow>
-              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                SCREENSHOT &amp; SENTENCE (any card, incl. Yomitan's)
+              <div style={{ marginTop: 12, marginBottom: 4 }}>
+                <GameBox
+                  appid={null}
+                  displayName={`${status?.anki_buffered ?? 0} buffered card${
+                    (status?.anki_buffered ?? 0) === 1 ? "" : "s"
+                  }`}
+                  fallbackIcon={<FaClone size={18} style={{ opacity: 0.5 }} />}
+                  action={
+                    <DialogButton
+                      style={{ width: "fit-content", minWidth: 0, padding: "8px 10px" }}
+                      disabled={(status?.anki_buffered ?? 0) === 0}
+                      onClick={() => showModal(<AnkiBufferModal />)}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <FaEye />
+                      </div>
+                    </DialogButton>
+                  }
+                />
               </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <DropdownItem
-                label="Card image"
-                rgOptions={ANKI_IMAGE_OPTIONS}
-                selectedOption={settings.anki_image}
-                onChange={(o) => update("anki_image", o.data)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Picture field name"
-                value={settings.anki_picture_field}
-                onChange={(e) => update("anki_picture_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Sentence field name"
-                value={settings.anki_sentence_field}
-                onChange={(e) => update("anki_sentence_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <ToggleField
-                label="Auto-attach to Yomitan's cards"
-                description="As Yomitan creates a card, fill in its screenshot and sentence automatically"
-                checked={!!settings.anki_auto_enrich}
-                onChange={(v) => update("anki_auto_enrich", v)}
-              />
             </PanelSectionRow>
             <PanelSectionRow>
               <ButtonItem
                 layout="below"
                 bottomSeparator="none"
-                onClick={async () => {
-                  const r = await enrichLatestNote();
-                  setBusyMsg(
-                    r.ok ? `Attached to note ${r.note_id}` : r.error ?? "failed");
-                }}
+                disabled={
+                  (status?.anki_buffered ?? 0) === 0 ||
+                  !!status?.runtime?.installing ||
+                  exporting
+                }
+                onClick={handleExport}
               >
-                Attach last capture to newest card
+                {!status?.runtime?.anki_installed
+                  ? status?.runtime?.installing
+                    ? `Installing… (${status.runtime.step})`
+                    : "Install Anki export runtime (~5 MB)"
+                  : exporting
+                  ? "Exporting…"
+                  : "Export via QR"}
               </ButtonItem>
             </PanelSectionRow>
+            {status?.runtime?.error ? (
+              <PanelSectionRow>
+                <div style={{ fontSize: 11, color: "#e74c3c" }}>
+                  {status.runtime.error}
+                </div>
+              </PanelSectionRow>
+            ) : null}
+
+            {qrUrl ? (
+              <>
+                <PanelSectionRow>
+                  <div
+                    style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}
+                  >
+                    <QrCode value={qrUrl} />
+                  </div>
+                </PanelSectionRow>
+                <PanelSectionRow>
+                  <div style={{ fontSize: 11, wordBreak: "break-all", opacity: 0.7 }}>
+                    {qrUrl}
+                  </div>
+                </PanelSectionRow>
+                <PanelSectionRow>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>
+                    Scan, then "Open in Anki" on your phone. Link expires in a
+                    few minutes.
+                  </div>
+                </PanelSectionRow>
+              </>
+            ) : null}
+
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                bottomSeparator="none"
+                disabled={(status?.anki_buffered ?? 0) === 0}
+                onClick={async () => {
+                  await clearAnkiBuffer();
+                  setQrUrl(null);
+                  setBusyMsg("Buffer cleared");
+                }}
+              >
+                Clear buffer
+              </ButtonItem>
+            </PanelSectionRow>
+
             {busyMsg ? (
               <PanelSectionRow>
                 <div style={{ fontSize: 12, color: "#dcae3c" }}>{busyMsg}</div>
@@ -502,12 +556,6 @@ export const Panel: FC = () => {
             </div>
             <div>
               Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
-              {settings.anki_enabled && (
-                <>
-                  {" · "}Anki:{" "}
-                  <b>{status?.anki_available ? "connected" : "not running"}</b>
-                </>
-              )}
             </div>
             <div>
               Controller:{" "}
