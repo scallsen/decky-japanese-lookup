@@ -35,7 +35,7 @@ DEFAULTS: dict[str, Any] = {
     # the plugin-owned note type embedded in the .apkg; empty field names
     # are skipped. Only anki_deck is user-facing (Panel.tsx); the rest are
     # fixed — no note-type/field-mapping UI, just a plugin-owned note type.
-    "anki_deck": "Mining",
+    "anki_deck": "Deck Vocab",
     "anki_note_type": "Basic",
     "anki_expression_field": "Front",
     "anki_reading_field": "",

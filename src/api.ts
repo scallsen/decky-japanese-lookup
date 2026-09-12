@@ -98,3 +98,13 @@ export const exportAnkiBuffer = callable<
   [],
   { ok: boolean; url?: string; count?: number; error?: string; needs_install?: boolean }
 >("export_anki_buffer");
+
+export interface BufferedCard {
+  id: string;
+  expression: string;
+  reading: string;
+  glosses: string;
+  sentence: string;
+  game: string;
+}
+export const getAnkiBuffer = callable<[], { cards: BufferedCard[] }>("get_anki_buffer");

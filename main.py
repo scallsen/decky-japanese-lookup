@@ -439,6 +439,9 @@ class Plugin:
         self.anki_buffer.clear()
         return {"ok": True}
 
+    async def get_anki_buffer(self):
+        return {"cards": self.anki_buffer.all()}
+
     async def install_anki_export_runtime(self):
         return {"started": self.installer.start_install_anki()}
 

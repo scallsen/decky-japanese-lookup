@@ -6,11 +6,12 @@ import {
   PanelSection,
   PanelSectionRow,
   Router,
+  showModal,
   TextField,
   ToggleField,
 } from "@decky/ui";
 import { FC, ReactNode, useEffect, useRef, useState } from "react";
-import { FaClone, FaGamepad } from "react-icons/fa";
+import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
   clearAnkiBuffer,
   downloadModels,
@@ -24,6 +25,7 @@ import {
   setSetting,
   UNKNOWN_APP_KEY,
 } from "./api";
+import { AnkiBufferModal } from "./AnkiBufferModal";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
 import { QrCode } from "./QrCode";
@@ -134,11 +136,12 @@ const AppThumbnail: FC<{ appid?: string | null; size?: number; fallbackIcon?: Re
 // Icon + name in a bordered box — reused for "which game these capture
 // areas are for" (capture-area section) and "which game gets tagged on
 // buffered cards" (Anki section).
-const GameBox: FC<{ appid?: string | null; displayName: string; fallbackIcon?: ReactNode }> = ({
-  appid,
-  displayName,
-  fallbackIcon,
-}) => (
+const GameBox: FC<{
+  appid?: string | null;
+  displayName: string;
+  fallbackIcon?: ReactNode;
+  action?: ReactNode;
+}> = ({ appid, displayName, fallbackIcon, action }) => (
   <div
     style={{
       display: "flex",
@@ -151,7 +154,8 @@ const GameBox: FC<{ appid?: string | null; displayName: string; fallbackIcon?: R
     }}
   >
     <AppThumbnail appid={appid} fallbackIcon={fallbackIcon} />
-    <div style={{ fontSize: 13, fontWeight: 600 }}>{displayName}</div>
+    <div style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{displayName}</div>
+    {action}
   </div>
 );
 
@@ -435,17 +439,22 @@ export const Panel: FC = () => {
             </PanelSectionRow>
 
             <PanelSectionRow>
-              <div style={{ fontSize: 12 }}>
-                Buffered cards: <b>{status?.anki_buffered ?? 0}</b>
-              </div>
-            </PanelSectionRow>
-
-            <PanelSectionRow>
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 4 }}>
                 <GameBox
                   appid={null}
-                  displayName={runningApp ? runningApp.display_name : "No game detected"}
+                  displayName={`${status?.anki_buffered ?? 0} buffered card${
+                    (status?.anki_buffered ?? 0) === 1 ? "" : "s"
+                  }`}
                   fallbackIcon={<FaClone size={18} style={{ opacity: 0.5 }} />}
+                  action={
+                    <DialogButton
+                      style={{ width: "fit-content", minWidth: 0, padding: "8px 10px" }}
+                      disabled={(status?.anki_buffered ?? 0) === 0}
+                      onClick={() => showModal(<AnkiBufferModal />)}
+                    >
+                      <FaEye />
+                    </DialogButton>
+                  }
                 />
               </div>
             </PanelSectionRow>
