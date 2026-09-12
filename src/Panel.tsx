@@ -202,11 +202,6 @@ export const Panel: FC = () => {
     });
   };
 
-  const resetToDefault = () => {
-    const { [editingKey]: _removed, ...rest } = profiles;
-    update("capture_profiles", rest);
-  };
-
   const setAreaButton = (i: number, button: string) => {
     const next = areas.map((a, idx) => {
       if (idx === i) return { ...a, button: button === "off" ? null : button };
@@ -305,13 +300,6 @@ export const Panel: FC = () => {
             </div>
           </div>
         </PanelSectionRow>
-        {hasCustomProfile && (
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={resetToDefault}>
-              Reset to Default areas
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
         {areas.map((area, i) => (
           <div
             key={i}
@@ -515,12 +503,6 @@ export const Panel: FC = () => {
           <ButtonItem layout="below" onClick={() => update("capture_profiles", {})}>
             Delete capture areas
           </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={{ fontSize: 11, opacity: 0.6 }}>
-            Clears every game&apos;s saved capture areas — all games go back
-            to using the Default areas above until edited again.
-          </div>
         </PanelSectionRow>
       </PanelSection>
 
