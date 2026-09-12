@@ -450,7 +450,7 @@ export const Panel: FC = () => {
                     <DialogButton
                       style={{ width: "fit-content", minWidth: 0, padding: "8px 10px" }}
                       disabled={(status?.anki_buffered ?? 0) === 0}
-                      onClick={() => showModal(<AnkiBufferModal />)}
+                      onClick={() => showModal(<AnkiBufferModal settings={settings} />)}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <FaEye />
@@ -512,18 +512,20 @@ export const Panel: FC = () => {
             ) : null}
 
             <PanelSectionRow>
-              <ButtonItem
-                layout="below"
-                bottomSeparator="none"
-                disabled={(status?.anki_buffered ?? 0) === 0}
-                onClick={async () => {
-                  await clearAnkiBuffer();
-                  setQrUrl(null);
-                  setBusyMsg("Buffer cleared");
-                }}
-              >
-                Clear buffer
-              </ButtonItem>
+              <div style={{ marginTop: status?.runtime?.error || qrUrl ? 0 : -8 }}>
+                <ButtonItem
+                  layout="below"
+                  bottomSeparator="none"
+                  disabled={(status?.anki_buffered ?? 0) === 0}
+                  onClick={async () => {
+                    await clearAnkiBuffer();
+                    setQrUrl(null);
+                    setBusyMsg("Buffer cleared");
+                  }}
+                >
+                  Clear buffer
+                </ButtonItem>
+              </div>
             </PanelSectionRow>
 
             {busyMsg ? (

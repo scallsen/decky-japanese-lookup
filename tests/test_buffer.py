@@ -60,6 +60,29 @@ def test_persistence_across_instances(tmp_path):
     assert b2.all()[0]["expression"] == "言葉"
 
 
+def test_remove_by_id(tmp_path):
+    b = PendingCards(str(tmp_path))
+    first = b.add("言葉", "ことば", "word", "これは言葉です")
+    b.add("猫", "ねこ", "cat", "猫がいる")
+    assert b.remove(first["id"]) is True
+    assert b.count() == 1
+    assert b.all()[0]["expression"] == "猫"
+
+
+def test_remove_persists(tmp_path):
+    b = PendingCards(str(tmp_path))
+    first = b.add("言葉", "ことば", "word", "これは言葉です")
+    b.remove(first["id"])
+    assert PendingCards(str(tmp_path)).count() == 0
+
+
+def test_remove_unknown_id_is_a_noop(tmp_path):
+    b = PendingCards(str(tmp_path))
+    b.add("言葉", "ことば", "word", "これは言葉です")
+    assert b.remove("not-a-real-id") is False
+    assert b.count() == 1
+
+
 def test_clear(tmp_path):
     b = PendingCards(str(tmp_path))
     b.add("言葉", "ことば", "word", "これは言葉です")

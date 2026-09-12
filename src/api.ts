@@ -108,3 +108,7 @@ export interface BufferedCard {
   game: string;
 }
 export const getAnkiBuffer = callable<[], { cards: BufferedCard[] }>("get_anki_buffer");
+export const removeAnkiBufferCard = callable<
+  [cardId: string],
+  { ok: boolean; buffered?: number }
+>("remove_anki_buffer_card");
