@@ -63,12 +63,20 @@ const CardPreview: FC<{
           height: 26,
           minWidth: 0,
           padding: 0,
-          borderRadius: "50%",
+          borderRadius: 4,
         }}
         disabled={removing}
         onClick={onRemove}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <FaTimes size={11} />
         </div>
       </DialogButton>
