@@ -8,32 +8,52 @@ import {
 } from "@decky/api";
 import { FaBookOpen } from "react-icons/fa";
 
-import { captureAndMine, getAllSettings, VnlEvent } from "./api";
+import { captureAndMine, getAllSettings, UNKNOWN_APP_KEY, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
 import { TriggerButton, TriggerWatcher } from "./input";
 import { Panel } from "./Panel";
 import { ScanOverlay } from "./ScanOverlay";
 
 export default definePlugin(() => {
+  let latestSettings: Record<string, any> = {};
+  let lastAppId: string | undefined;
+
   const watcher = new TriggerWatcher((button) => {
     // The hidraw monitor sees the button even inside Steam menus/QAM, and
     // the capture grabs whatever gamescope composites — so only fire while
     // a game is actually running to avoid OCRing the Steam UI.
-    if (!Router.MainRunningApp) return;
-    void captureAndMine(button).catch((e) => {
+    const app = Router.MainRunningApp;
+    if (!app) return;
+    void captureAndMine(button, app.appid).catch((e) => {
       toaster.toast({ title: "VN Lookup", body: `capture failed: ${e}` });
     });
   });
 
-  const applySettings = (s: Record<string, any>) => {
-    const areas = Array.isArray(s.capture_areas) ? s.capture_areas : [];
-    const watched = areas
-      .map((a: any) => a?.button)
+  // This game's areas if it has a saved profile, else the Default list —
+  // mirrors the backend's Plugin._areas_for in main.py.
+  const areasForApp = (appid?: string): any[] => {
+    const profiles = latestSettings.capture_profiles || {};
+    const profile = profiles[appid || UNKNOWN_APP_KEY];
+    const areas = profile?.areas?.length ? profile.areas : latestSettings.capture_areas;
+    return Array.isArray(areas) ? areas : [];
+  };
+
+  const reconfigureWatcher = () => {
+    lastAppId = Router.MainRunningApp?.appid;
+    const watched = areasForApp(lastAppId)
+      .map((a) => a?.button)
       .filter(Boolean) as TriggerButton[];
     watcher.configure(
       watched,
-      typeof s.trigger_hold_ms === "number" ? s.trigger_hold_ms : 250
+      typeof latestSettings.trigger_hold_ms === "number"
+        ? latestSettings.trigger_hold_ms
+        : 250
     );
+  };
+
+  const applySettings = (s: Record<string, any>) => {
+    latestSettings = s;
+    reconfigureWatcher();
   };
 
   // the backend may still be starting when the frontend loads — retry
@@ -52,6 +72,12 @@ export default definePlugin(() => {
   };
   void loadInitialSettings();
   watcher.start();
+
+  // Steam doesn't expose a "running app changed" event here, so poll for
+  // it cheaply — reconfigure only actually rebuilds state when it fires.
+  const appPoll = setInterval(() => {
+    if (Router.MainRunningApp?.appid !== lastAppId) reconfigureWatcher();
+  }, 1500);
 
   const onEvent = (ev: VnlEvent) => {
     if (ev.stage === "done" && ev.text && ev.copy_to_clipboard) {
@@ -89,6 +115,7 @@ export default definePlugin(() => {
     alwaysRender: true,
     onDismount() {
       watcher.stop();
+      clearInterval(appPoll);
       removeEventListener("vnl_event", onEvent);
       removeEventListener("vnl_settings", onSettings);
       routerHook.removeGlobalComponent("VnLookupScanOverlay");

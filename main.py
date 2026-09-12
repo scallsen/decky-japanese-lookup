@@ -111,16 +111,28 @@ class Plugin:
 
     # ---- the pipeline ----------------------------------------------------
 
-    async def capture_and_mine(self, button: str | None = None):
+    async def capture_and_mine(self, button: str | None = None, appid: str | None = None):
         if self._busy:
             return {"ok": False, "error": "capture already in progress"}
         self._busy = True
         try:
-            return await self._run_pipeline(button)
+            return await self._run_pipeline(button, appid)
         finally:
             self._busy = False
 
-    async def _run_pipeline(self, button: str | None = None):
+    # bucket for captures with no Steam appid to key by — matches
+    # UNKNOWN_APP_KEY in src/api.ts
+    UNKNOWN_PROFILE_KEY = "unknown"
+
+    def _areas_for(self, appid: str | None):
+        """This game's capture areas, or the Default list if it has none."""
+        profiles = self.settings.get("capture_profiles") or {}
+        key = str(appid) if appid else self.UNKNOWN_PROFILE_KEY
+        profile = profiles.get(key)
+        areas = profile.get("areas") if profile else None
+        return areas or self.settings.get("capture_areas") or []
+
+    async def _run_pipeline(self, button: str | None = None, appid: str | None = None):
         ts = int(time.time() * 1000)
         full_png = os.path.join(CAPTURES_DIR, f"capture_{ts}.png")
         crop_png = os.path.join(CAPTURES_DIR, f"crop_{ts}.png")
@@ -151,8 +163,7 @@ class Plugin:
         # the area actively being scanned, directly over the running game.
         backend_name = self.settings.get("ocr_backend")
         area = next(
-            (a for a in (self.settings.get("capture_areas") or [])
-             if a.get("button") == button),
+            (a for a in self._areas_for(appid) if a.get("button") == button),
             None)
         region = area["region"] if area else None
         await self._emit("ocr", region=region)

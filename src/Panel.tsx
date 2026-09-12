@@ -5,11 +5,13 @@ import {
   DropdownItem,
   PanelSection,
   PanelSectionRow,
+  Router,
   SliderField,
   TextField,
   ToggleField,
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
+import { FaGamepad } from "react-icons/fa";
 import {
   downloadModels,
   enrichLatestNote,
@@ -19,6 +21,7 @@ import {
   PluginStatus,
   Region,
   setSetting,
+  UNKNOWN_APP_KEY,
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
@@ -26,6 +29,11 @@ import { openRegionEditor } from "./RegionEditor";
 interface CaptureArea {
   region: Region;
   button: string | null;
+}
+
+interface CaptureProfile {
+  display_name: string;
+  areas: CaptureArea[];
 }
 
 const TRIGGER_OPTIONS = [
@@ -71,6 +79,51 @@ const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
     />
   </div>
 );
+
+// Steam caches per-app icons locally (works offline in gaming mode) and
+// exposes them via these undocumented store globals — not in @decky/ui's
+// types, so read them off `window` directly.
+const getAppIconUrl = (appid?: string | null): string | null => {
+  if (!appid) return null;
+  try {
+    const w = window as any;
+    const overview = w.appStore?.GetAppOverviewByAppID?.(Number(appid));
+    return (overview && w.appStore?.GetIconURLForApp?.(overview)) || null;
+  } catch {
+    return null;
+  }
+};
+
+// Small square game icon for the capture-area header; falls back to a
+// generic gamepad glyph when Steam has no cached icon for the appid (or
+// there's no appid at all, i.e. the "Default" profile).
+const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, size = 32 }) => {
+  const url = getAppIconUrl(appid);
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        overflow: "hidden",
+        flexShrink: 0,
+        background: "rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {url ? (
+        <img
+          src={url}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <FaGamepad size={size * 0.55} style={{ opacity: 0.5 }} />
+      )}
+    </div>
+  );
+};
 
 const BACKEND_OPTIONS = [
   { data: "rapidocr", label: "Local (RapidOCR, offline)" },
@@ -123,12 +176,31 @@ export const Panel: FC = () => {
     void setSetting(key, value);
   };
 
-  const areas: CaptureArea[] =
+  const defaultAreas: CaptureArea[] =
     Array.isArray(settings?.capture_areas) && settings.capture_areas.length > 0
       ? settings.capture_areas
       : [{ region: { x: 0.03, y: 0.62, w: 0.94, h: 0.36 }, button: "L5" }];
 
-  const updateAreas = (next: CaptureArea[]) => update("capture_areas", next);
+  const profiles: Record<string, CaptureProfile> = settings?.capture_profiles ?? {};
+  const runningApp = Router.MainRunningApp;
+  // no appid (no game running, or Steam can't report one) shares one
+  // generic bucket — there's no per-game identity to key a profile on
+  const editingKey = runningApp?.appid || UNKNOWN_APP_KEY;
+  const editingProfile = profiles[editingKey];
+  const hasCustomProfile = !!editingProfile?.areas?.length;
+  const areas: CaptureArea[] = hasCustomProfile ? editingProfile.areas : defaultAreas;
+
+  // editing with no saved profile yet writes one on the first change,
+  // seeded from whatever Default showed — that's the "automatic save"
+  const updateAreas = (next: CaptureArea[]) => {
+    update("capture_profiles", {
+      ...profiles,
+      [editingKey]: {
+        display_name: runningApp?.display_name ?? "Unknown game",
+        areas: next,
+      },
+    });
+  };
 
   const setAreaButton = (i: number, button: string) => {
     const next = areas.map((a, idx) => {
@@ -209,6 +281,25 @@ export const Panel: FC = () => {
       )}
 
       <PanelSection title="Capture area">
+        <PanelSectionRow>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              padding: 6,
+              borderRadius: 4,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              marginBottom: 8,
+            }}
+          >
+            <AppThumbnail appid={runningApp?.appid} />
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              {runningApp ? runningApp.display_name : "Game not detected"}
+            </div>
+          </div>
+        </PanelSectionRow>
         {areas.map((area, i) => (
           <div
             key={i}
@@ -407,6 +498,11 @@ export const Panel: FC = () => {
             checked={!!settings.auto_open_qam}
             onChange={(v) => update("auto_open_qam", v)}
           />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={() => update("capture_profiles", {})}>
+            Delete capture areas
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
 

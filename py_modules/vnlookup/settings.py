@@ -12,6 +12,11 @@ DEFAULTS: dict[str, Any] = {
     # region/region_alt/button_map/trigger_button settings — see
     # Plugin._main's one-time migration.
     "capture_areas": None,
+    # Per-game overrides, keyed by Steam appid (string):
+    # {"<appid>": {"display_name": str, "areas": [<capture_areas entry>, ...]}}.
+    # A game with no entry here uses capture_areas ("Default") until the
+    # user edits its areas, which creates an entry automatically.
+    "capture_profiles": {},
     # "rapidocr" (local, default) | "gemini" (cloud, needs api key)
     "ocr_backend": "rapidocr",
     "gemini_api_key": "",
