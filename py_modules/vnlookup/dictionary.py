@@ -116,6 +116,52 @@ def flatten_glosses(glosses) -> str:
     return "\n".join(ln for ln in lines if ln)
 
 
+_MAX_GLOSS_SENSES = 3
+
+
+def _cap_glosses(text: str, max_senses: int = _MAX_GLOSS_SENSES) -> str:
+    """Cap a flattened glosses string to its first few senses.
+
+    A common JMdict entry runs to 15+ senses; joined across every matching
+    dictionary row (see _entries), that's the entire dictionary entry
+    pasted into the word-lookup panel and onto every Anki card. A "• "
+    line is one sense; a bare line is a POS-group header only when a
+    bulleted line immediately follows it — otherwise it's itself a
+    standalone sense (e.g. simple single-gloss rows with no sense list at
+    all, or entries with no structured content).
+    """
+    lines = text.splitlines()
+    is_header = [
+        not ln.startswith("• ") and i + 1 < len(lines) and lines[i + 1].startswith("• ")
+        for i, ln in enumerate(lines)
+    ]
+    kept: list[str] = []
+    senses = 0
+    truncated = False
+    i = 0
+    while i < len(lines):
+        if is_header[i]:
+            if senses >= max_senses:
+                truncated = True
+                i += 1
+                while i < len(lines) and lines[i].startswith("• "):
+                    i += 1
+                continue
+            kept.append(lines[i])
+            i += 1
+            continue
+        if senses >= max_senses:
+            truncated = True
+            i += 1
+            continue
+        kept.append(lines[i])
+        senses += 1
+        i += 1
+    if truncated:
+        kept.append("…")
+    return "\n".join(kept)
+
+
 def _freq_value(data):
     """Normalize the many shapes of frequency data to (sort_key, display)."""
     if isinstance(data, (int, float)):
@@ -366,7 +412,7 @@ class Dictionary:
 
         entries = [grouped[k] for k in order]
         for e in entries:
-            e["glosses"] = "\n".join(e["glosses"])
+            e["glosses"] = _cap_glosses("\n".join(e["glosses"]))
             e["frequency"] = self._frequency(db, e["expression"])
             e["pitch"] = self._pitch(db, e["expression"], e["reading"])
         return entries

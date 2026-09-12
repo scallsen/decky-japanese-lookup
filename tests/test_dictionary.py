@@ -3,7 +3,7 @@ import time
 import zipfile
 
 import pytest
-from vnlookup.dictionary import Dictionary, _freq_value, flatten_glosses
+from vnlookup.dictionary import Dictionary, _cap_glosses, _freq_value, flatten_glosses
 
 
 def make_dict_zip(path, title="TestDict"):
@@ -142,6 +142,65 @@ def test_flatten_strips_attribution():
 
 def test_flatten_plain_string_glosses():
     assert flatten_glosses(["to eat", "to devour"]) == "to eat\nto devour"
+
+
+# ---- gloss capping ---------------------------------------------------------
+
+def test_cap_glosses_under_limit_is_unchanged():
+    text = "• one\n• two"
+    assert _cap_glosses(text, max_senses=3) == text
+
+
+def test_cap_glosses_truncates_bulleted_senses():
+    text = "\n".join(f"• sense {i}" for i in range(6))
+    out = _cap_glosses(text, max_senses=3)
+    assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2", "…"]
+
+
+def test_cap_glosses_drops_orphaned_header():
+    # a POS-group header whose senses are entirely past the cap shouldn't
+    # linger on its own
+    text = "\n".join(["• a", "• b", "• c", "noun", "• d", "• e"])
+    out = _cap_glosses(text, max_senses=3)
+    assert out.splitlines() == ["• a", "• b", "• c", "…"]
+
+
+def test_cap_glosses_keeps_header_when_a_sense_survives():
+    text = "\n".join(["• a", "• b", "noun", "• c", "• d"])
+    out = _cap_glosses(text, max_senses=3)
+    assert out.splitlines() == ["• a", "• b", "noun", "• c", "…"]
+
+
+def test_cap_glosses_caps_bare_lines_with_no_bullets():
+    # cross-dictionary joins in _entries can produce several flat,
+    # non-bulleted lines (one per simple-gloss row) with no bullets at all
+    text = "\n".join(f"gloss {i}" for i in range(5))
+    out = _cap_glosses(text, max_senses=3)
+    assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2", "…"]
+
+
+def test_lookup_caps_many_senses(tmp_path):
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    with zipfile.ZipFile(dicts_dir / "test.zip", "w") as z:
+        z.writestr("index.json", json.dumps(
+            {"title": "TestDict", "revision": "1", "format": 3}))
+        many_senses = sc({
+            "tag": "ul", "content": [
+                {"tag": "li", "content": f"sense {i}"} for i in range(10)
+            ],
+        })
+        z.writestr("term_bank_1.json", json.dumps([
+            ["多義語", "たぎご", "n", "", 100, many_senses, 1, ""],
+        ]))
+    d = Dictionary(str(tmp_path / "dict.sqlite3"), str(dicts_dir))
+    assert d.start_import()
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    entries = d.lookup(["多義語"])
+    lines = entries[0]["glosses"].splitlines()
+    assert len(lines) == 4  # 3 senses + the truncation marker
+    assert lines[-1] == "…"
 
 
 def test_freq_value_shapes():

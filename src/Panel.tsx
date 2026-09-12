@@ -450,7 +450,7 @@ export const Panel: FC = () => {
                     <DialogButton
                       style={{ width: "fit-content", minWidth: 0, padding: "8px 10px" }}
                       disabled={(status?.anki_buffered ?? 0) === 0}
-                      onClick={() => showModal(<AnkiBufferModal />)}
+                      onClick={() => showModal(<AnkiBufferModal settings={settings} />)}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <FaEye />

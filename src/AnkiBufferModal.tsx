@@ -1,16 +1,90 @@
 // Read-only preview of the Anki card buffer, opened from the eye button
-// next to the buffered-card count in the Anki section.
+// next to the buffered-card count in the Anki section. Renders each card
+// as it will actually come out of the export — same front/back split as
+// anki_export_worker.py's genanki template, respecting which fields are
+// actually configured (a blank field-name setting is skipped there too).
 
 import { ModalRoot } from "@decky/ui";
 import { FC, useEffect, useState } from "react";
 import { BufferedCard, getAnkiBuffer } from "./api";
 
-export const AnkiBufferModal: FC<{ closeModal?: () => void }> = ({ closeModal }) => {
+// mirrors ROLE_ORDER / CARD_KEY in py_modules/vnlookup/anki_export_worker.py
+const ROLE_ORDER = ["expression", "reading", "glossary", "sentence", "game"] as const;
+type Role = (typeof ROLE_ORDER)[number];
+
+const ROLE_CARD_KEY: Record<Role, keyof BufferedCard> = {
+  expression: "expression",
+  reading: "reading",
+  glossary: "glosses",
+  sentence: "sentence",
+  game: "game",
+};
+
+// mirrors the role -> settings-key map built in main.py's export_anki_buffer
+const ROLE_SETTING_KEY: Record<Role, string> = {
+  expression: "anki_expression_field",
+  reading: "anki_reading_field",
+  glossary: "anki_glossary_field",
+  sentence: "anki_sentence_field",
+  game: "anki_game_field",
+};
+
+// a blank field-name setting means that role is skipped on export — same
+// check as main.py's `name = (s.get(key) or "").strip(); if name: ...`
+const activeRoles = (settings: Record<string, any>): Role[] =>
+  ROLE_ORDER.filter((r) => !!(settings[ROLE_SETTING_KEY[r]] || "").toString().trim());
+
+const CardPreview: FC<{ card: BufferedCard; roles: Role[] }> = ({ card, roles }) => {
+  const front = roles.length ? card[ROLE_CARD_KEY[roles[0]]] : "";
+  const backRoles = roles.slice(1).filter((r) => card[ROLE_CARD_KEY[r]]);
+
+  return (
+    <div
+      style={{
+        border: "1px solid rgba(255,255,255,0.15)",
+        borderRadius: 6,
+        overflow: "hidden",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
+      <div style={{ padding: "10px 12px", fontSize: 15, fontWeight: 600, textAlign: "center" }}>
+        {front || <span style={{ opacity: 0.5 }}>(no front field configured)</span>}
+      </div>
+      {backRoles.length > 0 && (
+        <>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }} />
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {backRoles.map((r) => (
+              <div
+                key={r}
+                style={{
+                  fontSize: r === "game" ? 11 : 12,
+                  whiteSpace: "pre-wrap",
+                  opacity: r === "game" ? 0.55 : 0.85,
+                  textAlign: "center",
+                }}
+              >
+                {card[ROLE_CARD_KEY[r]]}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export const AnkiBufferModal: FC<{ settings: Record<string, any>; closeModal?: () => void }> = ({
+  settings,
+  closeModal,
+}) => {
   const [cards, setCards] = useState<BufferedCard[] | null>(null);
 
   useEffect(() => {
     void getAnkiBuffer().then((r) => setCards(r.cards));
   }, []);
+
+  const roles = activeRoles(settings);
 
   return (
     <ModalRoot bAllowFullSize onCancel={closeModal} closeModal={closeModal}>
@@ -23,31 +97,11 @@ export const AnkiBufferModal: FC<{ closeModal?: () => void }> = ({ closeModal })
         ) : cards.length === 0 ? (
           <div style={{ fontSize: 13, opacity: 0.7 }}>No cards buffered.</div>
         ) : (
-          cards.map((c, i) => (
-            <div
-              key={c.id}
-              style={{
-                borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
-                padding: "10px 0",
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 600 }}>
-                {c.expression}
-                {c.reading ? (
-                  <span style={{ fontWeight: 400, opacity: 0.7 }}> ({c.reading})</span>
-                ) : null}
-              </div>
-              {c.glosses ? (
-                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{c.glosses}</div>
-              ) : null}
-              {c.sentence ? (
-                <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>{c.sentence}</div>
-              ) : null}
-              {c.game ? (
-                <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{c.game}</div>
-              ) : null}
-            </div>
-          ))
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {cards.map((c) => (
+              <CardPreview key={c.id} card={c} roles={roles} />
+            ))}
+          </div>
         )}
       </div>
     </ModalRoot>
