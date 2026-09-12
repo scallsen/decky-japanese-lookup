@@ -2,7 +2,6 @@ import {
   ButtonItem,
   DialogButton,
   Dropdown,
-  DropdownItem,
   Field,
   PanelSection,
   PanelSectionRow,
@@ -13,10 +12,12 @@ import {
 import { FC, useEffect, useRef, useState } from "react";
 import { FaGamepad } from "react-icons/fa";
 import {
+  clearAnkiBuffer,
   downloadModels,
-  enrichLatestNote,
+  exportAnkiBuffer,
   getAllSettings,
   getStatus,
+  installAnkiExportRuntime,
   installRuntime,
   PluginStatus,
   Region,
@@ -25,6 +26,7 @@ import {
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
+import { QrCode } from "./QrCode";
 
 interface CaptureArea {
   region: Region;
@@ -125,17 +127,42 @@ const AppThumbnail: FC<{ appid?: string | null; size?: number }> = ({ appid, siz
   );
 };
 
-const ANKI_IMAGE_OPTIONS = [
-  { data: "full", label: "Full screenshot" },
-  { data: "crop", label: "Text box crop" },
-];
-
 export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
   const [busyMsg, setBusyMsg] = useState("");
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
+
+  useEffect(() => {
+    if (!qrUrl) return;
+    const t = setTimeout(() => setQrUrl(null), 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [qrUrl]);
+
+  const handleExport = async () => {
+    setBusyMsg("");
+    if (!status?.runtime?.anki_installed) {
+      await installAnkiExportRuntime();
+      setBusyMsg("Installing…");
+      return;
+    }
+    setExporting(true);
+    setQrUrl(null);
+    try {
+      const r = await exportAnkiBuffer();
+      if (r.ok && r.url) {
+        setQrUrl(r.url);
+        setBusyMsg(`Exported ${r.count} card(s) — scan to import`);
+      } else {
+        setBusyMsg(r.error ?? "export failed");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const refreshStatus = async () => {
     try {
@@ -373,7 +400,7 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ToggleField
             label="Enable Anki integration"
-            description="Create cards from lookups, and enrich cards Yomitan creates"
+            description="Buffer +Anki taps, then export them as a .apkg you scan onto your phone"
             checked={!!settings.anki_enabled}
             onChange={(v) => update("anki_enabled", v)}
             bottomSeparator={settings.anki_enabled ? "standard" : "none"}
@@ -382,13 +409,8 @@ export const Panel: FC = () => {
         {settings.anki_enabled && (
           <>
             <PanelSectionRow>
-              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                CARD CREATION (built-in dictionary only)
-              </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
               <TextField
-                label="Deck (for created cards)"
+                label="Deck (for exported cards)"
                 value={settings.anki_deck}
                 onChange={(e) => update("anki_deck", e.target.value)}
               />
@@ -399,6 +421,13 @@ export const Panel: FC = () => {
                 value={settings.anki_note_type}
                 onChange={(e) => update("anki_note_type", e.target.value)}
               />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <div style={{ fontSize: 11, opacity: 0.6 }}>
+                Exporting creates/updates a plugin-owned note type with this
+                name — it won't merge into an existing note type of the same
+                name already in your collection.
+              </div>
             </PanelSectionRow>
             <PanelSectionRow>
               <TextField
@@ -415,63 +444,92 @@ export const Panel: FC = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
+              <TextField
+                label="Glossary field (blank = skip)"
+                value={settings.anki_glossary_field}
+                onChange={(e) => update("anki_glossary_field", e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
               <Field childrenLayout="below" bottomSeparator="standard">
                 <TextField
-                  label="Glossary field (blank = skip)"
-                  value={settings.anki_glossary_field}
-                  onChange={(e) => update("anki_glossary_field", e.target.value)}
+                  label="Sentence field name"
+                  value={settings.anki_sentence_field}
+                  onChange={(e) => update("anki_sentence_field", e.target.value)}
                 />
               </Field>
             </PanelSectionRow>
 
             <PanelSectionRow>
-              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                SCREENSHOT &amp; SENTENCE (any card, incl. Yomitan's)
+              <div style={{ fontSize: 12 }}>
+                Buffered cards: <b>{status?.anki_buffered ?? 0}</b>
               </div>
             </PanelSectionRow>
-            <PanelSectionRow>
-              <DropdownItem
-                label="Card image"
-                rgOptions={ANKI_IMAGE_OPTIONS}
-                selectedOption={settings.anki_image}
-                onChange={(o) => update("anki_image", o.data)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Picture field name"
-                value={settings.anki_picture_field}
-                onChange={(e) => update("anki_picture_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Sentence field name"
-                value={settings.anki_sentence_field}
-                onChange={(e) => update("anki_sentence_field", e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <ToggleField
-                label="Auto-attach to Yomitan's cards"
-                description="As Yomitan creates a card, fill in its screenshot and sentence automatically"
-                checked={!!settings.anki_auto_enrich}
-                onChange={(v) => update("anki_auto_enrich", v)}
-              />
-            </PanelSectionRow>
+
             <PanelSectionRow>
               <ButtonItem
                 layout="below"
-                bottomSeparator="none"
-                onClick={async () => {
-                  const r = await enrichLatestNote();
-                  setBusyMsg(
-                    r.ok ? `Attached to note ${r.note_id}` : r.error ?? "failed");
-                }}
+                disabled={
+                  (status?.anki_buffered ?? 0) === 0 ||
+                  !!status?.runtime?.installing ||
+                  exporting
+                }
+                onClick={handleExport}
               >
-                Attach last capture to newest card
+                {!status?.runtime?.anki_installed
+                  ? status?.runtime?.installing
+                    ? `Installing… (${status.runtime.step})`
+                    : "Install Anki export runtime (~5 MB)"
+                  : exporting
+                  ? "Exporting…"
+                  : "Export via QR"}
               </ButtonItem>
             </PanelSectionRow>
+            {status?.runtime?.error ? (
+              <PanelSectionRow>
+                <div style={{ fontSize: 11, color: "#e74c3c" }}>
+                  {status.runtime.error}
+                </div>
+              </PanelSectionRow>
+            ) : null}
+
+            {qrUrl ? (
+              <>
+                <PanelSectionRow>
+                  <div
+                    style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}
+                  >
+                    <QrCode value={qrUrl} />
+                  </div>
+                </PanelSectionRow>
+                <PanelSectionRow>
+                  <div style={{ fontSize: 11, wordBreak: "break-all", opacity: 0.7 }}>
+                    {qrUrl}
+                  </div>
+                </PanelSectionRow>
+                <PanelSectionRow>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>
+                    Scan, then "Open in Anki" on your phone. Link expires in a
+                    few minutes.
+                  </div>
+                </PanelSectionRow>
+              </>
+            ) : null}
+
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                disabled={(status?.anki_buffered ?? 0) === 0}
+                onClick={async () => {
+                  await clearAnkiBuffer();
+                  setQrUrl(null);
+                  setBusyMsg("Buffer cleared");
+                }}
+              >
+                Clear buffer
+              </ButtonItem>
+            </PanelSectionRow>
+
             {busyMsg ? (
               <PanelSectionRow>
                 <div style={{ fontSize: 12, color: "#dcae3c" }}>{busyMsg}</div>
@@ -502,12 +560,6 @@ export const Panel: FC = () => {
             </div>
             <div>
               Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
-              {settings.anki_enabled && (
-                <>
-                  {" · "}Anki:{" "}
-                  <b>{status?.anki_available ? "connected" : "not running"}</b>
-                </>
-              )}
             </div>
             <div>
               Controller:{" "}

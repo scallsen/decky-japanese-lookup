@@ -2,8 +2,9 @@
 
 Pipeline per trigger press: capture frame via gamescope's PipeWire source →
 OCR (local RapidOCR in a venv subprocess, or Gemini Vision) → rule-based
-cleanup → broadcast to the texthooker page (Yomitan hovers it there) →
-remember the screenshot so new Anki cards get enriched with it.
+cleanup → broadcast to the texthooker page (Yomitan hovers it there).
+Anki cards (native lookup path) are buffered locally and exported as a
+batch .apkg on demand, scanned onto a phone via QR code.
 """
 
 import asyncio
@@ -14,7 +15,9 @@ import time
 import decky
 
 from vnlookup import cleanup
-from vnlookup.anki import AnkiConnect, AnkiError
+from vnlookup.anki_export import AnkiExportError, build_apkg
+from vnlookup.anki_server import AnkiExportServer
+from vnlookup.buffer import PendingCards
 from vnlookup.capture import CaptureError, ScreenCapture
 from vnlookup.deliver import DeliveryServer
 from vnlookup.deps import RuntimeInstaller
@@ -62,7 +65,8 @@ class Plugin:
         )
         self.monitor = HidrawButtonMonitor()
         self.delivery = DeliveryServer(port=int(self.settings.get("texthooker_port")))
-        self.anki = AnkiConnect(self.settings.get("ankiconnect_url"))
+        self.anki_buffer = PendingCards(RUNTIME_DIR)
+        self.anki_server = AnkiExportServer()
         self.dictionary = Dictionary(
             os.path.join(RUNTIME_DIR, "dictionary.sqlite3"),
             os.path.join(RUNTIME_DIR, "dicts"))
@@ -70,10 +74,6 @@ class Plugin:
 
         self._busy = False
         self._last_result = None
-        # pending capture waiting to be attached to the next Anki note
-        self._pending_capture = None
-        self._anki_last_note_seen = int(time.time() * 1000)
-        self._anki_attempts = {}  # note_id -> failed enrichment attempts
 
         os.makedirs(CAPTURES_DIR, exist_ok=True)
         self.monitor.start()
@@ -82,7 +82,6 @@ class Plugin:
         except Exception as e:
             logger.error(f"delivery server failed to start: {e}")
 
-        self._anki_task = asyncio.get_event_loop().create_task(self._anki_watcher())
         logger.info("VN Lookup backend up")
 
     async def _unload(self):
@@ -90,11 +89,12 @@ class Plugin:
         if monitor:
             # stop() joins the reader thread; keep it off the event loop
             await asyncio.to_thread(monitor.stop)
-        if getattr(self, "_anki_task", None):
-            self._anki_task.cancel()
         delivery = getattr(self, "delivery", None)
         if delivery:
             await delivery.stop()
+        anki_server = getattr(self, "anki_server", None)
+        if anki_server:
+            await anki_server.stop()
 
     async def _uninstall(self):
         pass
@@ -241,14 +241,6 @@ class Plugin:
         # gamescope propagates it to the other XWayland windows)
         await self.delivery.broadcast(cleaned)
 
-        # 5. remember for Anki enrichment
-        crop_exists = os.path.exists(crop_png)
-        self._pending_capture = {
-            "ts": ts,
-            "sentence": cleaned,
-            "full": full_png,
-            "crop": crop_png if crop_exists else full_png,
-        }
         self._prune_captures()
 
         payload = {
@@ -267,94 +259,14 @@ class Plugin:
     def _prune_captures(self):
         # full + crop per capture; never below one capture's worth
         keep = max(2, int(self.settings.get("screenshot_history")) * 2)
-        pending = self._pending_capture or {}
-        protected = {pending.get("full"), pending.get("crop")}
         try:
             files = sorted(
                 (os.path.join(CAPTURES_DIR, f) for f in os.listdir(CAPTURES_DIR)),
                 key=os.path.getmtime, reverse=True)
             for f in files[keep:]:
-                if f not in protected:
-                    os.remove(f)
+                os.remove(f)
         except OSError as e:
             logger.warning(f"capture pruning failed: {e}")
-
-    # ---- Anki enrichment -------------------------------------------------
-
-    async def _anki_watcher(self):
-        """Attach screenshot/sentence to Yomitan-created notes."""
-        while True:
-            try:
-                await asyncio.sleep(3)
-                if not self.settings.get("anki_enabled"):
-                    continue
-                if not self.settings.get("anki_auto_enrich"):
-                    continue
-                pending = self._pending_capture
-                if not pending:
-                    continue
-                # stop watching 15 min after the last capture
-                if time.time() * 1000 - pending["ts"] > 15 * 60 * 1000:
-                    self._pending_capture = None
-                    continue
-                try:
-                    new_notes = await self.anki.notes_created_after(
-                        max(self._anki_last_note_seen, pending["ts"]))
-                except AnkiError:
-                    continue  # Anki not running — fine, try later
-                for note_id in new_notes:
-                    image = (pending["crop"]
-                             if self.settings.get("anki_image") == "crop"
-                             else pending["full"])
-                    try:
-                        wrote = await self.anki.enrich_note(
-                            note_id, image, pending["sentence"],
-                            picture_field=self.settings.get("anki_picture_field"),
-                            sentence_field=self.settings.get("anki_sentence_field"))
-                        logger.info(f"enriched note {note_id}: {wrote}")
-                        self._anki_last_note_seen = max(
-                            self._anki_last_note_seen, note_id)
-                        self._anki_attempts.pop(note_id, None)
-                        await self._emit("anki", note_id=note_id, **wrote)
-                    except AnkiError as e:
-                        # transient errors retry next tick; give up after 3
-                        # so a bad field name can't loop forever
-                        tries = self._anki_attempts.get(note_id, 0) + 1
-                        self._anki_attempts[note_id] = tries
-                        logger.warning(
-                            f"note enrichment failed (try {tries}/3): {e}")
-                        if tries >= 3:
-                            self._anki_last_note_seen = max(
-                                self._anki_last_note_seen, note_id)
-                            self._anki_attempts.pop(note_id, None)
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"anki watcher error: {e}")
-
-    async def enrich_latest_note(self):
-        """Manual fallback: attach the last capture to the newest note."""
-        if not self.settings.get("anki_enabled"):
-            return {"ok": False, "error": "Anki integration is disabled in settings"}
-        pending = self._pending_capture
-        if not pending:
-            return {"ok": False, "error": "no capture to attach"}
-        try:
-            ids = await self.anki.invoke("findNotes", query="added:1")
-            if not ids:
-                return {"ok": False, "error": "no notes added today"}
-            note_id = max(ids)
-            image = (pending["crop"] if self.settings.get("anki_image") == "crop"
-                     else pending["full"])
-            wrote = await self.anki.enrich_note(
-                note_id, image, pending["sentence"],
-                picture_field=self.settings.get("anki_picture_field"),
-                sentence_field=self.settings.get("anki_sentence_field"))
-            # don't let the auto-watcher enrich the same note again
-            self._anki_last_note_seen = max(self._anki_last_note_seen, note_id)
-            return {"ok": True, "note_id": note_id, **wrote}
-        except AnkiError as e:
-            return {"ok": False, "error": str(e)}
 
     # ---- visual region editor ----------------------------------------------
     # The editor works on the LATEST pipeline capture, never a fresh frame:
@@ -517,47 +429,59 @@ class Plugin:
 
     async def create_anki_card(self, expression: str, reading: str,
                                glosses: str, sentence: str):
-        """Direct card creation from the native lookup panel."""
-        s = self.settings
-        if not s.get("anki_enabled"):
+        """Buffer a card for later batch export as a .apkg via QR code."""
+        if not self.settings.get("anki_enabled"):
             return {"ok": False, "error": "Anki integration is disabled in settings"}
-        fields = {}
-        for field_key, value in (
-            ("anki_expression_field", expression),
-            ("anki_reading_field", reading),
-            ("anki_glossary_field", glosses),
-            ("anki_sentence_field", sentence),
+        self.anki_buffer.add(expression, reading, glosses, sentence)
+        return {"ok": True, "buffered": self.anki_buffer.count()}
+
+    async def clear_anki_buffer(self):
+        self.anki_buffer.clear()
+        return {"ok": True}
+
+    async def install_anki_export_runtime(self):
+        return {"started": self.installer.start_install_anki()}
+
+    async def export_anki_buffer(self):
+        """Package the buffer into a .apkg and serve it over the LAN for a
+        QR-code scan. Does not clear the buffer — that's a separate,
+        explicit action."""
+        if not self.anki_buffer.count():
+            return {"ok": False, "error": "No buffered cards to export"}
+        if not self.installer.is_anki_installed():
+            return {"ok": False, "error": "Anki export runtime not installed",
+                    "needs_install": True}
+        s = self.settings
+        field_map = {}
+        for role, key in (
+            ("expression", "anki_expression_field"),
+            ("reading", "anki_reading_field"),
+            ("glossary", "anki_glossary_field"),
+            ("sentence", "anki_sentence_field"),
         ):
-            name = (s.get(field_key) or "").strip()
+            name = (s.get(key) or "").strip()
             if name:
-                fields[name] = value or ""
-
-        picture_field = (s.get("anki_picture_field") or "").strip()
-        pending = self._pending_capture
-        picture_path = None
-        if picture_field and pending:
-            fields.setdefault(picture_field, "")
-            picture_path = (pending["crop"] if s.get("anki_image") == "crop"
-                            else pending["full"])
-
-        if not fields:
+                field_map[role] = name
+        if not field_map:
             return {"ok": False,
                     "error": "no Anki fields configured in settings"}
+
+        out_path = os.path.join(RUNTIME_DIR, "anki_export.apkg")
         try:
-            note_id = await self.anki.add_note(
-                s.get("anki_deck"), s.get("anki_note_type"), fields,
-                picture_path=picture_path, picture_field=picture_field)
-            # keep the Yomitan-watcher from enriching this card again
-            self._anki_last_note_seen = max(self._anki_last_note_seen, note_id)
-            return {"ok": True, "note_id": note_id}
-        except AnkiError as e:
+            await build_apkg(self.installer.python, self.anki_buffer.all(),
+                             s.get("anki_deck"), s.get("anki_note_type"),
+                             field_map, out_path)
+        except AnkiExportError as e:
             return {"ok": False, "error": str(e)}
+        try:
+            url = await self.anki_server.start(out_path)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "url": url, "count": self.anki_buffer.count()}
 
     # ---- setup / status callables -----------------------------------------
 
     async def get_status(self):
-        anki_ok = (await self.anki.is_available()
-                   if self.settings.get("anki_enabled") else False)
         probe = {}
         try:
             probe = await self.capture.probe()
@@ -572,7 +496,7 @@ class Plugin:
                 "port": self.delivery.port,
                 "clients": self.delivery.client_count,
             },
-            "anki_available": anki_ok,
+            "anki_buffered": self.anki_buffer.count(),
             "last_result": self._last_result,
             "busy": self._busy,
         }
@@ -606,8 +530,6 @@ class Plugin:
 
     async def set_setting(self, key, value):
         self.settings.set(key, value)
-        if key == "ankiconnect_url":
-            self.anki = AnkiConnect(value)
         if key == "texthooker_port":
             await self.delivery.stop()
             self.delivery = DeliveryServer(port=int(value))

@@ -1,7 +1,7 @@
 import { callable } from "@decky/api";
 
 export interface VnlEvent {
-  stage: "capturing" | "ocr" | "done" | "error" | "anki";
+  stage: "capturing" | "ocr" | "done" | "error";
   message?: string;
   text?: string;
   raw?: string;
@@ -10,19 +10,16 @@ export interface VnlEvent {
   clients?: number;
   copy_to_clipboard?: boolean;
   auto_open_qam?: boolean;
-  note_id?: number;
-  picture?: boolean;
-  sentence?: boolean;
   region?: Region | null;
 }
 
 export interface PluginStatus {
   monitor: { running: boolean; initialized: boolean; device_path: string | null };
-  runtime: { installed: boolean; lookup_installed: boolean; installing: boolean; step: string; error: string | null };
+  runtime: { installed: boolean; lookup_installed: boolean; anki_installed: boolean; installing: boolean; step: string; error: string | null };
   models: { installed: boolean; downloading: boolean; progress: number; error: string | null; approx_size_mb: number };
   capture: { pipewire_source?: boolean; pngenc?: boolean; dims?: [number, number] | null; error?: string };
   delivery: { port: number; clients: number };
-  anki_available: boolean;
+  anki_buffered: number;
   busy: boolean;
   last_result?: { text: string; raw: string; confidence: number } | null;
 }
@@ -78,7 +75,6 @@ export const setSetting = callable<[key: string, value: any], { ok: boolean }>("
 export const installRuntime = callable<[], { started: boolean }>("install_runtime");
 export const downloadModels = callable<[], { started: boolean }>("download_models");
 export const testLine = callable<[], { ok: boolean; clients: number }>("test_line");
-export const enrichLatestNote = callable<[], { ok: boolean; error?: string; note_id?: number }>("enrich_latest_note");
 
 // visual region editor
 export const getEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("get_editor_frame");
@@ -94,5 +90,11 @@ export const installLookupRuntime = callable<[], { started: boolean }>("install_
 export const importDictionaries = callable<[downloadJitendex: boolean], { started: boolean }>("import_dictionaries");
 export const createAnkiCard = callable<
   [expression: string, reading: string, glosses: string, sentence: string],
-  { ok: boolean; note_id?: number; error?: string }
+  { ok: boolean; buffered?: number; error?: string }
 >("create_anki_card");
+export const clearAnkiBuffer = callable<[], { ok: boolean }>("clear_anki_buffer");
+export const installAnkiExportRuntime = callable<[], { started: boolean }>("install_anki_export_runtime");
+export const exportAnkiBuffer = callable<
+  [],
+  { ok: boolean; url?: string; count?: number; error?: string; needs_install?: boolean }
+>("export_anki_buffer");
