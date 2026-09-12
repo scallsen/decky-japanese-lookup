@@ -63,23 +63,18 @@ _CSS = """
 }
 """
 
-# Frozen (not time.time()) so every export looks *older* than any edit the
-# user makes afterward in Anki's card template editor. Every export reuses
-# the same deterministic model_id (see stable_id() in anki_export.py) so
-# genanki notetype collisions merge instead of duplicating; Anki's import
-# policy on a collision is "newest mod time wins, collection-wide" — freezing
-# this means the plugin's export can never look newer than a real local
-# edit and clobber it.
-#
-# A collection that already has this note type imported (from a previous
-# export at this same timestamp) won't pick up a template/CSS change unless
-# this constant increases — same-mod-time is a tie Anki resolves in favor
-# of what's already there. So: bump this, by any amount, every time the
-# default template/CSS in this file changes, so the update actually reaches
-# collections nobody has customized yet. Only collections with a genuine
-# local edit (stamped with the real time it was made, always far later
-# than any of these) stay protected either way.
-_FROZEN_TIMESTAMP = 1735776000  # 2025-01-02T00:00:00Z — v2: role-based font sizing
+# Frozen (not time.time()) so every export looks *older* than any local
+# edit the user makes afterward. This is belt-and-suspenders, not the
+# actual mechanism that gets a shipped design update into an
+# already-imported collection — that's TEMPLATE_VERSION in
+# anki_export.py, folded into the model_id itself, because on-device
+# testing found AnkiMobile's plain .apkg import just keeps an existing
+# note type's template/CSS as-is on an ID match, with no mod-time
+# comparison happening at all (whatever the sync-time collision policy
+# is, it evidently isn't consulted for a bare package import). A frozen
+# timestamp can't fix that — nothing here needs bumping for a design
+# change anymore, only TEMPLATE_VERSION does.
+_FROZEN_TIMESTAMP = 1735776000  # 2025-01-02T00:00:00Z
 
 
 def _fail(msg, **extra):
