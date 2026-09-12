@@ -439,7 +439,7 @@ export const Panel: FC = () => {
             </PanelSectionRow>
 
             <PanelSectionRow>
-              <div style={{ marginBottom: 4 }}>
+              <div style={{ marginTop: 12, marginBottom: 4 }}>
                 <GameBox
                   appid={null}
                   displayName={`${status?.anki_buffered ?? 0} buffered card${
@@ -461,6 +461,7 @@ export const Panel: FC = () => {
             <PanelSectionRow>
               <ButtonItem
                 layout="below"
+                bottomSeparator="none"
                 disabled={
                   (status?.anki_buffered ?? 0) === 0 ||
                   !!status?.runtime?.installing ||
