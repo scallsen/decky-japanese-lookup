@@ -69,11 +69,17 @@ _CSS = """
 # genanki notetype collisions merge instead of duplicating; Anki's import
 # policy on a collision is "newest mod time wins, collection-wide" — freezing
 # this means the plugin's export can never look newer than a real local
-# edit and clobber it. Only the plugin's own first-ever import (nothing to
-# collide with yet) is affected by this constant's actual value. Bump this
-# only when deliberately shipping a new default design that should still
-# reach collections no one has customized yet.
-_FROZEN_TIMESTAMP = 1735689600  # 2025-01-01T00:00:00Z
+# edit and clobber it.
+#
+# A collection that already has this note type imported (from a previous
+# export at this same timestamp) won't pick up a template/CSS change unless
+# this constant increases — same-mod-time is a tie Anki resolves in favor
+# of what's already there. So: bump this, by any amount, every time the
+# default template/CSS in this file changes, so the update actually reaches
+# collections nobody has customized yet. Only collections with a genuine
+# local edit (stamped with the real time it was made, always far later
+# than any of these) stay protected either way.
+_FROZEN_TIMESTAMP = 1735776000  # 2025-01-02T00:00:00Z — v2: role-based font sizing
 
 
 def _fail(msg, **extra):
