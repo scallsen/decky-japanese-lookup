@@ -21,6 +21,7 @@ import {
   PluginStatus,
   Region,
   setSetting,
+  UNKNOWN_APP_KEY,
 } from "./api";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
@@ -138,9 +139,6 @@ export const Panel: FC = () => {
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [settings, setSettingsState] = useState<Record<string, any> | null>(null);
   const [busyMsg, setBusyMsg] = useState("");
-  // which profile to edit when no game is running (picker fallback) —
-  // while a game IS running its profile is picked automatically instead
-  const [manualAppId, setManualAppId] = useState<string | null>(null);
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
 
@@ -185,30 +183,27 @@ export const Panel: FC = () => {
 
   const profiles: Record<string, CaptureProfile> = settings?.capture_profiles ?? {};
   const runningApp = Router.MainRunningApp;
-  // a running game always wins over the manual picker below — once a game
-  // starts, editing snaps to it automatically
-  const editingAppId = runningApp?.appid ?? manualAppId ?? null;
-  const editingProfile = editingAppId ? profiles[editingAppId] : undefined;
-  const editingName = runningApp?.display_name ?? editingProfile?.display_name ?? null;
-  const hasCustomProfile = !!editingAppId && !!editingProfile?.areas?.length;
-  const areas: CaptureArea[] = hasCustomProfile ? editingProfile!.areas : defaultAreas;
+  // no appid (no game running, or Steam can't report one) shares one
+  // generic bucket — there's no per-game identity to key a profile on
+  const editingKey = runningApp?.appid || UNKNOWN_APP_KEY;
+  const editingProfile = profiles[editingKey];
+  const hasCustomProfile = !!editingProfile?.areas?.length;
+  const areas: CaptureArea[] = hasCustomProfile ? editingProfile.areas : defaultAreas;
 
-  // editing a game with no profile yet writes one on the first change,
+  // editing with no saved profile yet writes one on the first change,
   // seeded from whatever Default showed — that's the "automatic save"
   const updateAreas = (next: CaptureArea[]) => {
-    if (editingAppId) {
-      update("capture_profiles", {
-        ...profiles,
-        [editingAppId]: { display_name: editingName ?? "Unknown game", areas: next },
-      });
-    } else {
-      update("capture_areas", next);
-    }
+    update("capture_profiles", {
+      ...profiles,
+      [editingKey]: {
+        display_name: runningApp?.display_name ?? "Unknown game",
+        areas: next,
+      },
+    });
   };
 
   const resetToDefault = () => {
-    if (!editingAppId) return;
-    const { [editingAppId]: _removed, ...rest } = profiles;
+    const { [editingKey]: _removed, ...rest } = profiles;
     update("capture_profiles", rest);
   };
 
@@ -292,54 +287,23 @@ export const Panel: FC = () => {
 
       <PanelSection title="Capture area">
         <PanelSectionRow>
-          {runningApp ? (
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                padding: "6px 10px",
-                borderRadius: 4,
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                marginBottom: 8,
-              }}
-            >
-              <AppThumbnail appid={runningApp.appid} />
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                {runningApp.display_name}
-              </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              padding: "6px 10px",
+              borderRadius: 4,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              marginBottom: 8,
+            }}
+          >
+            <AppThumbnail appid={runningApp?.appid} />
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              {runningApp ? runningApp.display_name : "Game not detected"}
             </div>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                padding: "6px 10px",
-                borderRadius: 4,
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                marginBottom: 8,
-              }}
-            >
-              <AppThumbnail appid={manualAppId} />
-              <span style={{ fontSize: 12, opacity: 0.8, whiteSpace: "nowrap" }}>
-                No game running — editing:
-              </span>
-              <Dropdown
-                rgOptions={[
-                  { data: "", label: "Default" },
-                  ...Object.entries(profiles).map(([id, p]) => ({
-                    data: id,
-                    label: p.display_name || id,
-                  })),
-                ]}
-                selectedOption={manualAppId ?? ""}
-                onChange={(o) => setManualAppId(o.data || null)}
-              />
-            </div>
-          )}
+          </div>
         </PanelSectionRow>
         {hasCustomProfile && (
           <PanelSectionRow>
@@ -546,6 +510,17 @@ export const Panel: FC = () => {
             checked={!!settings.auto_open_qam}
             onChange={(v) => update("auto_open_qam", v)}
           />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={() => update("capture_profiles", {})}>
+            Delete capture areas
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={{ fontSize: 11, opacity: 0.6 }}>
+            Clears every game&apos;s saved capture areas — all games go back
+            to using the Default areas above until edited again.
+          </div>
         </PanelSectionRow>
       </PanelSection>
 

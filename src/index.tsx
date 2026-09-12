@@ -8,7 +8,7 @@ import {
 } from "@decky/api";
 import { FaBookOpen } from "react-icons/fa";
 
-import { captureAndMine, getAllSettings, VnlEvent } from "./api";
+import { captureAndMine, getAllSettings, UNKNOWN_APP_KEY, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
 import { TriggerButton, TriggerWatcher } from "./input";
 import { Panel } from "./Panel";
@@ -33,7 +33,7 @@ export default definePlugin(() => {
   // mirrors the backend's Plugin._areas_for in main.py.
   const areasForApp = (appid?: string): any[] => {
     const profiles = latestSettings.capture_profiles || {};
-    const profile = appid ? profiles[appid] : undefined;
+    const profile = profiles[appid || UNKNOWN_APP_KEY];
     const areas = profile?.areas?.length ? profile.areas : latestSettings.capture_areas;
     return Array.isArray(areas) ? areas : [];
   };

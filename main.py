@@ -120,10 +120,15 @@ class Plugin:
         finally:
             self._busy = False
 
+    # bucket for captures with no Steam appid to key by — matches
+    # UNKNOWN_APP_KEY in src/api.ts
+    UNKNOWN_PROFILE_KEY = "unknown"
+
     def _areas_for(self, appid: str | None):
         """This game's capture areas, or the Default list if it has none."""
         profiles = self.settings.get("capture_profiles") or {}
-        profile = profiles.get(str(appid)) if appid else None
+        key = str(appid) if appid else self.UNKNOWN_PROFILE_KEY
+        profile = profiles.get(key)
         areas = profile.get("areas") if profile else None
         return areas or self.settings.get("capture_areas") or []
 
