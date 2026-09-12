@@ -287,7 +287,7 @@ export const Panel: FC = () => {
               display: "flex",
               gap: 10,
               alignItems: "center",
-              padding: "6px 10px",
+              padding: 6,
               borderRadius: 4,
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.1)",
