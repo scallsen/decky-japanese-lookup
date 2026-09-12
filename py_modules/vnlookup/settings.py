@@ -36,7 +36,7 @@ DEFAULTS: dict[str, Any] = {
     # are skipped. Only anki_deck is user-facing (Panel.tsx); the rest are
     # fixed — no note-type/field-mapping UI, just a plugin-owned note type.
     "anki_deck": "Steam Deck Vocabulary",
-    "anki_note_type": "Basic",
+    "anki_note_type": "VN Lookup",
     "anki_expression_field": "Front",
     "anki_reading_field": "",
     "anki_glossary_field": "Back",

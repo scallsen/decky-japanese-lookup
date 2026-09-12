@@ -57,6 +57,15 @@ class Plugin:
                 if mode in ("box", "alt")
             ]
             self.settings.set("capture_areas", areas or [{"region": region, "button": None}])
+        if self.settings.get("anki_note_type") == "Basic":
+            # there's no UI to set this to "Basic" anymore (the field-name
+            # TextFields were dropped from Panel.tsx) — anyone with this
+            # value only has it because it was never touched since before
+            # the default changed, so it's safe to migrate. Avoids a note
+            # type named "Basic" colliding (by name, not by the id that
+            # actually matters — see TEMPLATE_VERSION in anki_export.py)
+            # with Anki's own stock "Basic" note type in the UI.
+            self.settings.set("anki_note_type", "VN Lookup")
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
