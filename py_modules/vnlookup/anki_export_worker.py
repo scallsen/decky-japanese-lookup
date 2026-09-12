@@ -19,6 +19,31 @@ ROLE_ORDER = ["expression", "reading", "glossary", "sentence"]
 CARD_KEY = {"expression": "expression", "reading": "reading",
             "glossary": "glosses", "sentence": "sentence"}
 
+# genanki's own default (arial, 20px, no CJK coverage) reads small on a
+# phone and can't render Japanese at all on a device with no CJK-aware
+# fallback wired to "arial" — mirrors the font stack already used for
+# Japanese text in src/LookupPanel.tsx.
+_CSS = """
+.card {
+ font-family: "Noto Sans CJK JP", "Hiragino Sans", "Yu Gothic", arial, sans-serif;
+ font-size: 26px;
+ line-height: 1.5;
+ text-align: center;
+ color: black;
+ background-color: white;
+}
+"""
+
+# Frozen (not time.time()) so every export looks *older* than any edit the
+# user makes afterward in Anki's card template editor. Every export reuses
+# the same deterministic model_id (see stable_id() in anki_export.py) so
+# genanki notetype collisions merge instead of duplicating; Anki's import
+# policy on a collision is "newest mod time wins, collection-wide" — freezing
+# this means the plugin's export can never look newer than a real local
+# edit and clobber it. Only the plugin's own first-ever import (nothing to
+# collide with yet) is affected by this constant's actual value.
+_FROZEN_TIMESTAMP = 1735689600  # 2025-01-01T00:00:00Z
+
 
 def _fail(msg, **extra):
     print(json.dumps({"error": msg, **extra}, ensure_ascii=False))
@@ -57,6 +82,7 @@ def main():
             "afmt": ('{{FrontSide}}<hr id="answer">'
                      + "<br>".join(field_ref(r) for r in roles[1:])),
         }],
+        css=_CSS,
     )
     deck = genanki.Deck(opts["deck_id"], opts["deck_name"])
 
@@ -64,7 +90,7 @@ def main():
         for card in opts.get("cards", []):
             fields = [card.get(CARD_KEY[r], "") or "" for r in roles]
             deck.add_note(genanki.Note(model=model, fields=fields, guid=card["id"]))
-        genanki.Package(deck).write_to_file(opts["out_path"])
+        genanki.Package(deck).write_to_file(opts["out_path"], timestamp=_FROZEN_TIMESTAMP)
     except Exception as e:
         import traceback
         _fail(f"apkg build failed: {e}", trace=traceback.format_exc())
