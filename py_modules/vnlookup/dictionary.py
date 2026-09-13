@@ -43,7 +43,12 @@ _BLOCK_TAGS = {"div", "li", "ul", "ol", "br", "tr", "details", "summary"}
 # been populated. Only a higher target version reaches those devices;
 # fixing __init__'s ordering going forward doesn't rewrite a version
 # number an already-shipped build already wrote.
-_SCHEMA_VERSION = 2
+#
+# 3: real Jitendex entries nest another "sense"/"sense-group" <li> around
+# each glossary <li> (for the ①②③ numbering), which used to each add
+# their own bullet to the same line ("• • • to eat"), and separately embed
+# a Tatoeba example-sentence per sense that was leaking into glosses too.
+_SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS dictionaries (
@@ -105,13 +110,25 @@ def flatten_content(node, pos_out: list = None) -> str:
             # entry already carries the dict title, and full acknowledgement
             # lives in the plugin's "About / sources" settings section
             return ""
+        if semantic == "example-sentence":
+            # a Tatoeba usage example nested inside the sense — several
+            # sentences' worth per entry once every sense has one; too
+            # verbose for a compact lookup/card view, so drop the whole
+            # subtree (Japanese + translation + footnote) rather than
+            # just the attribution part of it
+            return ""
         if semantic == "part-of-speech-info" and pos_out is not None:
             label = flatten_content(node.get("content")).strip()
             if label:
                 pos_out.append(label)
             return ""
         inner = flatten_content(node.get("content"), pos_out)
-        if tag == "li":
+        if tag == "li" and semantic not in ("sense", "sense-group"):
+            # a real gloss line. "sense"/"sense-group" <li>s (falling through
+            # to the plain _BLOCK_TAGS handling below, no bullet) are just
+            # numbering/grouping wrappers around one or more of these —
+            # nested <li>s at every level would otherwise each add their
+            # own bullet to the same line ("• • • to eat")
             inner = "• " + inner.strip() + "\n"
         elif tag in ("ul", "ol"):
             # glossary lists must not start on the part-of-speech line

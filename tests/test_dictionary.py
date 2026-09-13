@@ -247,6 +247,49 @@ def test_flatten_plain_string_glosses():
     assert flatten_glosses(["to eat", "to devour"]) == "to eat\nto devour"
 
 
+def test_flatten_strips_example_sentences():
+    # real Jitendex entries nest a Tatoeba example (JP + EN + footnote)
+    # inside each sense — too verbose for a compact lookup/card view
+    out = flatten_glosses(sc([
+        {"tag": "ul", "content": [{"tag": "li", "content": "to say"}]},
+        {"tag": "div", "data": {"content": "example-sentence"}, "content": [
+            {"tag": "div", "data": {"content": "example-sentence-a"},
+             "content": "こんにちはと言う。"},
+            {"tag": "div", "data": {"content": "example-sentence-b"}, "content": [
+                {"tag": "span", "content": "He says hello."},
+                {"tag": "span", "data": {"content": "attribution-footnote"},
+                 "content": "[1]"},
+            ]},
+        ]},
+    ]))
+    assert out == "• to say"
+
+
+def test_flatten_collapses_nested_sense_lis_to_one_bullet():
+    # real shape: an outer "sense-group" <li> wraps one or more numbered
+    # "sense" <li>s (the ①②③ list), each of which wraps the actual
+    # glossary <li> — every level used to add its own bullet to the same
+    # line ("• • • to eat") since flatten_content didn't distinguish
+    # structural/numbering <li>s from the one real gloss <li>
+    out = flatten_glosses(sc({
+        "tag": "ul", "data": {"content": "sense-groups"}, "content": {
+            "tag": "li", "data": {"content": "sense-group"}, "content": [
+                {"tag": "ol", "content": [
+                    {"tag": "li", "data": {"content": "sense"}, "content": [
+                        {"tag": "ul", "data": {"content": "glossary"},
+                         "content": {"tag": "li", "content": "to eat"}},
+                    ]},
+                    {"tag": "li", "data": {"content": "sense"}, "content": [
+                        {"tag": "ul", "data": {"content": "glossary"},
+                         "content": {"tag": "li", "content": "to live on"}},
+                    ]},
+                ]},
+            ],
+        },
+    }))
+    assert out.splitlines() == ["• to eat", "• to live on"]
+
+
 def test_flatten_extracts_pos_labels_when_requested():
     # opt-in via pos_out: the labels are excluded from the returned text
     # entirely rather than left inline as an ambiguous bare line
