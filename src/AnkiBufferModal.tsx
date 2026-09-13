@@ -10,13 +10,21 @@ import { FaTimes } from "react-icons/fa";
 import { BufferedCard, getAnkiBuffer, removeAnkiBufferCard } from "./api";
 
 // mirrors ROLE_ORDER / CARD_KEY in py_modules/vnlookup/anki_export_worker.py
-const ROLE_ORDER = ["expression", "reading", "glossary", "sentence", "game"] as const;
+const ROLE_ORDER = [
+  "expression",
+  "reading",
+  "glossary",
+  "word_type",
+  "sentence",
+  "game",
+] as const;
 type Role = (typeof ROLE_ORDER)[number];
 
 const ROLE_CARD_KEY: Record<Role, keyof BufferedCard> = {
   expression: "expression",
   reading: "reading",
   glossary: "glosses",
+  word_type: "word_type",
   sentence: "sentence",
   game: "game",
 };
@@ -26,6 +34,7 @@ const ROLE_SETTING_KEY: Record<Role, string> = {
   expression: "anki_expression_field",
   reading: "anki_reading_field",
   glossary: "anki_glossary_field",
+  word_type: "anki_word_type_field",
   sentence: "anki_sentence_field",
   game: "anki_game_field",
 };
@@ -34,6 +43,21 @@ const ROLE_SETTING_KEY: Record<Role, string> = {
 // check as main.py's `name = (s.get(key) or "").strip(); if name: ...`
 const activeRoles = (settings: Record<string, any>): Role[] =>
   ROLE_ORDER.filter((r) => !!(settings[ROLE_SETTING_KEY[r]] || "").toString().trim());
+
+// mirrors the .r-* role classes in anki_export_worker.py's _CSS: reading
+// shares expression's large/bold treatment (same word, same weight),
+// glossary + sentence are the main content (medium), word_type is small
+// secondary detail, game is the smallest, purely-reference info
+const BACK_ROLE_STYLE: Record<
+  Exclude<Role, "expression">,
+  { fontSize: number; opacity: number; fontWeight?: number }
+> = {
+  reading: { fontSize: 15, opacity: 1, fontWeight: 600 },
+  glossary: { fontSize: 14, opacity: 0.92 },
+  word_type: { fontSize: 11, opacity: 0.55 },
+  sentence: { fontSize: 14, opacity: 0.92 },
+  game: { fontSize: 10, opacity: 0.5 },
+};
 
 const CardPreview: FC<{
   card: BufferedCard;
@@ -98,9 +122,8 @@ const CardPreview: FC<{
               <div
                 key={r}
                 style={{
-                  fontSize: r === "game" ? 11 : 12,
+                  ...BACK_ROLE_STYLE[r as Exclude<Role, "expression">],
                   whiteSpace: "pre-wrap",
-                  opacity: r === "game" ? 0.55 : 0.85,
                   textAlign: "center",
                 }}
               >

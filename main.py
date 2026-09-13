@@ -57,6 +57,21 @@ class Plugin:
                 if mode in ("box", "alt")
             ]
             self.settings.set("capture_areas", areas or [{"region": region, "button": None}])
+        if self.settings.get("anki_note_type") == "Basic":
+            # there's no UI to set this to "Basic" anymore (the field-name
+            # TextFields were dropped from Panel.tsx) — anyone with this
+            # value only has it because it was never touched since before
+            # the default changed, so it's safe to migrate. Avoids a note
+            # type named "Basic" colliding (by name, not by the id that
+            # actually matters — see TEMPLATE_VERSION in anki_export.py)
+            # with Anki's own stock "Basic" note type in the UI.
+            self.settings.set("anki_note_type", "VN Lookup")
+        if self.settings.get("anki_reading_field") == "":
+            # same situation: no UI ever let this be deliberately set to
+            # blank since the field-name TextFields were dropped, so any
+            # stored blank is just the old default (reading was originally
+            # opt-in/skipped) rather than a deliberate choice
+            self.settings.set("anki_reading_field", "Reading")
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
@@ -428,11 +443,12 @@ class Plugin:
         return {"started": self.dictionary.start_import(download_jitendex)}
 
     async def create_anki_card(self, expression: str, reading: str,
-                               glosses: str, sentence: str, game: str = ""):
+                               glosses: str, sentence: str, game: str = "",
+                               word_type: str = ""):
         """Buffer a card for later batch export as a .apkg via QR code."""
         if not self.settings.get("anki_enabled"):
             return {"ok": False, "error": "Anki integration is disabled in settings"}
-        self.anki_buffer.add(expression, reading, glosses, sentence, game)
+        self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
         return {"ok": True, "buffered": self.anki_buffer.count()}
 
     async def clear_anki_buffer(self):
@@ -464,6 +480,7 @@ class Plugin:
             ("expression", "anki_expression_field"),
             ("reading", "anki_reading_field"),
             ("glossary", "anki_glossary_field"),
+            ("word_type", "anki_word_type_field"),
             ("sentence", "anki_sentence_field"),
             ("game", "anki_game_field"),
         ):

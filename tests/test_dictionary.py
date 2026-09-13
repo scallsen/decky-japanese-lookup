@@ -1,9 +1,16 @@
 import json
+import sqlite3
 import time
 import zipfile
 
 import pytest
-from vnlookup.dictionary import Dictionary, _cap_glosses, _freq_value, flatten_glosses
+from vnlookup.dictionary import (
+    Dictionary,
+    _cap_glosses,
+    _freq_value,
+    _SCHEMA_VERSION,
+    flatten_glosses,
+)
 
 
 def make_dict_zip(path, title="TestDict"):
@@ -46,6 +53,102 @@ def test_import_counts(dic):
     assert st["dictionaries"] == ["TestDict"]
     assert st["term_count"] == 4
     assert st["ready"]
+
+
+def _make_pre_word_type_db(db_path, dict_title):
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(f"""
+        CREATE TABLE dictionaries (id INTEGER PRIMARY KEY, title TEXT UNIQUE,
+                                    revision TEXT, kind TEXT);
+        CREATE TABLE terms (dict_id INTEGER, expression TEXT, reading TEXT,
+                             glosses TEXT, tags TEXT, score INTEGER);
+        CREATE TABLE term_meta (dict_id INTEGER, expression TEXT, mode TEXT,
+                                 data TEXT);
+        INSERT INTO dictionaries VALUES (1, '{dict_title}', '1', 'term');
+        INSERT INTO terms VALUES (1, '古い', 'ふるい', 'old', '', 1);
+    """)
+    conn.commit()
+    conn.close()
+
+
+def test_migrates_pre_word_type_database_with_no_cached_zip(tmp_path):
+    # no source zip to re-import from (e.g. it really was deleted) — must
+    # still not crash; the column is added but the stale row is left as-is
+    # until the user re-imports themselves. Critically, the failed reimport
+    # must NOT mark the migration as done: user_version has to stay behind
+    # so a later launch (once a zip is available again) retries it, rather
+    # than treating "we tried and failed" the same as "it's handled".
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "Old")
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"]
+
+    entries = d.lookup(["古い"])
+    assert entries[0]["glosses"] == "old"
+    assert entries[0]["word_type"] == ""
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+    conn.close()
+
+
+def test_migrates_pre_word_type_database_reimports_cached_zip(tmp_path):
+    # the common case: the dictionary zip is still sitting in dicts_dir
+    # (never deleted after the original import) — migrating should
+    # silently re-run the import against it, so already-imported entries
+    # end up with the header correctly split out, with no user action
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "TestDict")  # matches make_dict_zip's title
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    make_dict_zip(dicts_dir / "test.zip")
+
+    d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"] is None
+
+    # the pre-migration "古い" row came only from the hand-built old-schema
+    # DB, not from make_dict_zip's fixture — re-importing "TestDict"
+    # replaces its rows entirely, so this one is gone; that's expected
+    # (the dictionary's own re-import semantics, unrelated to word_type)
+    assert d.lookup(["古い"]) == []
+    entries = d.lookup(["食べる"])
+    assert "to eat" in entries[0]["glosses"]
+    assert "• to live on" in entries[0]["glosses"]
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == _SCHEMA_VERSION
+    conn.close()
+
+
+def test_reimports_even_when_word_type_column_already_added(tmp_path):
+    # regression: an earlier version of this migration added the
+    # word_type column without reimporting anything into it. A
+    # database that already has the (empty) column from that half-done
+    # migration must still trigger the reimport — the column's mere
+    # presence is not a reliable "already migrated" signal.
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "TestDict")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
+    conn.commit()
+    conn.close()
+
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    make_dict_zip(dicts_dir / "test.zip")
+
+    d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"] is None
+    entries = d.lookup(["食べる"])
+    assert entries  # reimport actually happened, not skipped
 
 
 def test_lookup_by_expression_with_meta(dic):
@@ -144,39 +247,97 @@ def test_flatten_plain_string_glosses():
     assert flatten_glosses(["to eat", "to devour"]) == "to eat\nto devour"
 
 
-# ---- gloss capping ---------------------------------------------------------
+def test_flatten_strips_example_sentences():
+    # real Jitendex entries nest a Tatoeba example (JP + EN + footnote)
+    # inside each sense — too verbose for a compact lookup/card view
+    out = flatten_glosses(sc([
+        {"tag": "ul", "content": [{"tag": "li", "content": "to say"}]},
+        {"tag": "div", "data": {"content": "example-sentence"}, "content": [
+            {"tag": "div", "data": {"content": "example-sentence-a"},
+             "content": "こんにちはと言う。"},
+            {"tag": "div", "data": {"content": "example-sentence-b"}, "content": [
+                {"tag": "span", "content": "He says hello."},
+                {"tag": "span", "data": {"content": "attribution-footnote"},
+                 "content": "[1]"},
+            ]},
+        ]},
+    ]))
+    assert out == "• to say"
+
+
+def test_flatten_collapses_nested_sense_lis_to_one_bullet():
+    # real shape: an outer "sense-group" <li> wraps one or more numbered
+    # "sense" <li>s (the ①②③ list), each of which wraps the actual
+    # glossary <li> — every level used to add its own bullet to the same
+    # line ("• • • to eat") since flatten_content didn't distinguish
+    # structural/numbering <li>s from the one real gloss <li>
+    out = flatten_glosses(sc({
+        "tag": "ul", "data": {"content": "sense-groups"}, "content": {
+            "tag": "li", "data": {"content": "sense-group"}, "content": [
+                {"tag": "ol", "content": [
+                    {"tag": "li", "data": {"content": "sense"}, "content": [
+                        {"tag": "ul", "data": {"content": "glossary"},
+                         "content": {"tag": "li", "content": "to eat"}},
+                    ]},
+                    {"tag": "li", "data": {"content": "sense"}, "content": [
+                        {"tag": "ul", "data": {"content": "glossary"},
+                         "content": {"tag": "li", "content": "to live on"}},
+                    ]},
+                ]},
+            ],
+        },
+    }))
+    assert out.splitlines() == ["• to eat", "• to live on"]
+
+
+def test_flatten_extracts_pos_labels_when_requested():
+    # opt-in via pos_out: the labels are excluded from the returned text
+    # entirely rather than left inline as an ambiguous bare line
+    pos = []
+    out = flatten_glosses(sc([
+        {"tag": "div", "data": {"content": "sense-group"}, "content": [
+            {"tag": "span", "data": {"content": "part-of-speech-info"},
+             "content": "noun"},
+            {"tag": "span", "data": {"content": "part-of-speech-info"},
+             "content": "na-adj"},
+            {"tag": "ul", "data": {"content": "glossary"}, "content": [
+                {"tag": "li", "content": "anxiety"},
+            ]},
+        ]},
+    ]), pos)
+    assert out.splitlines() == ["• anxiety"]
+    assert pos == ["noun", "na-adj"]
+
+
+def test_flatten_pos_extraction_omitted_by_default():
+    # no pos_out given -> old inline behavior, unchanged (e.g. for direct
+    # callers that still want the header inline)
+    out = flatten_glosses(sc([
+        {"tag": "span", "data": {"content": "part-of-speech-info"}, "content": "noun"},
+        {"tag": "ul", "content": [{"tag": "li", "content": "anxiety"}]},
+    ]))
+    assert out.splitlines() == ["noun", "• anxiety"]
+
+
+# ---- gloss capping ----------------------------------------------------------
 
 def test_cap_glosses_under_limit_is_unchanged():
     text = "• one\n• two"
     assert _cap_glosses(text, max_senses=3) == text
 
 
-def test_cap_glosses_truncates_bulleted_senses():
+def test_cap_glosses_truncates():
     text = "\n".join(f"• sense {i}" for i in range(6))
     out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2", "…"]
+    assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2"]
 
 
-def test_cap_glosses_drops_orphaned_header():
-    # a POS-group header whose senses are entirely past the cap shouldn't
-    # linger on its own
-    text = "\n".join(["• a", "• b", "• c", "noun", "• d", "• e"])
-    out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• a", "• b", "• c", "…"]
-
-
-def test_cap_glosses_keeps_header_when_a_sense_survives():
-    text = "\n".join(["• a", "• b", "noun", "• c", "• d"])
-    out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• a", "• b", "noun", "• c", "…"]
-
-
-def test_cap_glosses_caps_bare_lines_with_no_bullets():
+def test_cap_glosses_handles_bare_lines_too():
     # cross-dictionary joins in _entries can produce several flat,
-    # non-bulleted lines (one per simple-gloss row) with no bullets at all
+    # non-bulleted lines (one per simple-gloss row)
     text = "\n".join(f"gloss {i}" for i in range(5))
     out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2", "…"]
+    assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2"]
 
 
 def test_lookup_caps_many_senses(tmp_path):
@@ -199,8 +360,39 @@ def test_lookup_caps_many_senses(tmp_path):
         time.sleep(0.02)
     entries = d.lookup(["多義語"])
     lines = entries[0]["glosses"].splitlines()
-    assert len(lines) == 4  # 3 senses + the truncation marker
-    assert lines[-1] == "…"
+    assert len(lines) == 3
+    assert entries[0]["word_type"] == ""
+
+
+def test_lookup_extracts_word_type_from_pos_header(tmp_path):
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    with zipfile.ZipFile(dicts_dir / "test.zip", "w") as z:
+        z.writestr("index.json", json.dumps(
+            {"title": "TestDict", "revision": "1", "format": 3}))
+        content = sc([
+            {"tag": "div", "data": {"content": "sense-group"}, "content": [
+                {"tag": "span", "data": {"content": "part-of-speech-info"},
+                 "content": "noun"},
+                {"tag": "span", "data": {"content": "part-of-speech-info"},
+                 "content": "na-adj"},
+                {"tag": "ul", "data": {"content": "glossary"}, "content": [
+                    {"tag": "li", "content": "anxiety"},
+                    {"tag": "li", "content": "worry"},
+                ]},
+            ]},
+        ])
+        z.writestr("term_bank_1.json", json.dumps([
+            ["不安", "ふあん", "n,adj-na", "", 100, content, 1, ""],
+        ]))
+    d = Dictionary(str(tmp_path / "dict.sqlite3"), str(dicts_dir))
+    assert d.start_import()
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    entries = d.lookup(["不安"])
+    assert entries[0]["word_type"] == "noun, na-adj"
+    assert "noun" not in entries[0]["glosses"]
+    assert "• anxiety" in entries[0]["glosses"]
 
 
 def test_freq_value_shapes():

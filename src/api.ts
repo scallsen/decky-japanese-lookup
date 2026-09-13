@@ -38,6 +38,7 @@ export interface DictEntry {
   reading: string;
   matched: string;
   glosses: string;
+  word_type: string;
   tags: string;
   dicts: string[];
   frequency: string | null;
@@ -89,7 +90,14 @@ export const getLookupStatus = callable<[], LookupStatus>("get_lookup_status");
 export const installLookupRuntime = callable<[], { started: boolean }>("install_lookup_runtime");
 export const importDictionaries = callable<[downloadJitendex: boolean], { started: boolean }>("import_dictionaries");
 export const createAnkiCard = callable<
-  [expression: string, reading: string, glosses: string, sentence: string, game: string],
+  [
+    expression: string,
+    reading: string,
+    glosses: string,
+    sentence: string,
+    game: string,
+    wordType: string,
+  ],
   { ok: boolean; buffered?: number; error?: string }
 >("create_anki_card");
 export const clearAnkiBuffer = callable<[], { ok: boolean }>("clear_anki_buffer");
@@ -106,6 +114,7 @@ export interface BufferedCard {
   glosses: string;
   sentence: string;
   game: string;
+  word_type: string;
 }
 export const getAnkiBuffer = callable<[], { cards: BufferedCard[] }>("get_anki_buffer");
 export const removeAnkiBufferCard = callable<

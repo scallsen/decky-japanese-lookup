@@ -14,6 +14,24 @@ logger = logging.getLogger(__name__)
 WORKER = os.path.join(os.path.dirname(__file__), "anki_export_worker.py")
 EXPORT_TIMEOUT = 60
 
+# Folded into the model_id salt so a deliberate template/CSS change (see
+# anki_export_worker.py) mints a brand-new note type on export instead of
+# colliding with whatever's already in the user's collection. This turned
+# out to be necessary, not just defensive: AnkiMobile's package import
+# keeps an existing note type's template/CSS as-is on an ID match — it
+# does not appear to consult the model's mod-time for plain .apkg imports
+# (that comparison, if it happens at all, is a sync-only thing) — so the
+# frozen-timestamp trick alone does not get a shipped design update into
+# an already-imported collection. A new ID sidesteps needing to know
+# either way: existing notes/cards stay exactly as they are (on the old
+# note type, however the user may have since customized it), and only
+# newly-exported cards land on the new one. Bump this — any change is
+# fine — every time the default template/CSS changes.
+#
+# 4: reading is now enabled by default and shares the large .r-expression
+# style (both the field set and the CSS changed).
+TEMPLATE_VERSION = 4
+
 
 class AnkiExportError(Exception):
     """apkg build failed — surface to the user."""
@@ -47,7 +65,7 @@ async def build_apkg(venv_python: str, cards: list[dict], deck_name: str,
         "deck_name": deck_name,
         "deck_id": stable_id("vnlookup-deck", deck_name),
         "note_type_name": note_type_name,
-        "model_id": stable_id("vnlookup-model", note_type_name),
+        "model_id": stable_id(f"vnlookup-model-v{TEMPLATE_VERSION}", note_type_name),
         "field_map": field_map,
         "out_path": out_path,
     }

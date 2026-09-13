@@ -186,7 +186,7 @@ export const LookupSection: FC<{
     setMessage("Buffering…");
     const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
-      e.expression, e.reading, e.glosses, sentence ?? "", game);
+      e.expression, e.reading, e.glosses, sentence ?? "", game, e.word_type);
     setMessage(r.ok ? `✓ Buffered (${e.expression}) — ${r.buffered} pending` : `✗ ${r.error}`);
   };
 
@@ -440,6 +440,11 @@ export const LookupSection: FC<{
                       </DialogButton>
                     )}
                   </div>
+                  {e.word_type && (
+                    <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 2 }}>
+                      {e.word_type}
+                    </div>
+                  )}
                   <div
                     style={{
                       fontSize: 13,

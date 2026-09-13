@@ -36,6 +36,21 @@ def test_game_defaults_to_empty_string(tmp_path):
     assert card["game"] == ""
 
 
+def test_word_type_defaults_to_empty_string(tmp_path):
+    b = PendingCards(str(tmp_path))
+    card = b.add("言葉", "ことば", "word", "これは言葉です")
+    assert card["word_type"] == ""
+
+
+def test_word_type_stored_and_updated_on_dedupe(tmp_path):
+    b = PendingCards(str(tmp_path))
+    first = b.add("言葉", "ことば", "word", "これは言葉です", word_type="n")
+    assert first["word_type"] == "n"
+    second = b.add("言葉", "ことば", "word", "これは言葉です", word_type="n adj-na")
+    assert b.count() == 1
+    assert second["word_type"] == "n adj-na"
+
+
 def test_game_stored_and_updated_on_dedupe(tmp_path):
     b = PendingCards(str(tmp_path))
     first = b.add("言葉", "ことば", "word", "これは言葉です", game="Game A")
