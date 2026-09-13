@@ -183,11 +183,11 @@ export const LookupSection: FC<{
   };
 
   const addCard = async (e: DictEntry) => {
-    setMessage("Buffering…");
+    setMessage("Adding…");
     const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
       e.expression, e.reading, e.glosses, sentence ?? "", game, e.word_type);
-    setMessage(r.ok ? `✓ Buffered (${e.expression}) — ${r.buffered} pending` : `✗ ${r.error}`);
+    setMessage(r.ok ? `✓ Added ${e.expression} to Anki queue` : `✗ ${r.error}`);
   };
 
   // ---- setup states ------------------------------------------------------
@@ -359,7 +359,18 @@ export const LookupSection: FC<{
 
             {message ? (
               <PanelSectionRow>
-                <div style={{ fontSize: 12, color: "#dcae3c" }}>{message}</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: message.startsWith("✓")
+                      ? "#4caf50"
+                      : message.startsWith("✗")
+                      ? "#e74c3c"
+                      : "#dcae3c",
+                  }}
+                >
+                  {message}
+                </div>
               </PanelSectionRow>
             ) : null}
 
@@ -385,7 +396,7 @@ export const LookupSection: FC<{
                   }}
                   tabIndex={0}
                   onActivate={ankiEnabled ? () => void addCard(e) : undefined}
-                  onOKActionDescription={ankiEnabled ? "Buffer Anki card" : undefined}
+                  onOKActionDescription={ankiEnabled ? "Add to Anki queue" : undefined}
                 >
                   {/* the entry itself is the gamepad-focus/scroll-into-view
                       target (tabIndex here, not just on the +Anki button) so

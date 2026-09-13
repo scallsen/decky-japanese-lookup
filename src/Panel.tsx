@@ -165,6 +165,7 @@ export const Panel: FC = () => {
   const [busyMsg, setBusyMsg] = useState("");
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
 
@@ -275,7 +276,7 @@ export const Panel: FC = () => {
 
   if (!settings) {
     return (
-      <PanelSection title="VN Lookup">
+      <PanelSection title="Japanese Lookup">
         <PanelSectionRow>Loading…</PanelSectionRow>
       </PanelSection>
     );
@@ -442,9 +443,9 @@ export const Panel: FC = () => {
               <div style={{ marginTop: 12, marginBottom: 4 }}>
                 <GameBox
                   appid={null}
-                  displayName={`${status?.anki_buffered ?? 0} buffered card${
+                  displayName={`${status?.anki_buffered ?? 0} card${
                     (status?.anki_buffered ?? 0) === 1 ? "" : "s"
-                  }`}
+                  } in Anki queue`}
                   fallbackIcon={<FaClone size={18} style={{ opacity: 0.5 }} />}
                   action={
                     <DialogButton
@@ -477,7 +478,7 @@ export const Panel: FC = () => {
                     : "Install Anki export runtime (~5 MB)"
                   : exporting
                   ? "Exporting…"
-                  : "Export via QR"}
+                  : "Export via QR code"}
               </ButtonItem>
             </PanelSectionRow>
             {status?.runtime?.error ? (
@@ -520,10 +521,10 @@ export const Panel: FC = () => {
                   onClick={async () => {
                     await clearAnkiBuffer();
                     setQrUrl(null);
-                    setBusyMsg("Buffer cleared");
+                    setBusyMsg("Anki queue cleared");
                   }}
                 >
-                  Clear buffer
+                  Clear Anki queue
                 </ButtonItem>
               </div>
             </PanelSectionRow>
@@ -541,38 +542,48 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            bottomSeparator="none"
             onClick={() => update("capture_profiles", {})}
           >
             Delete all capture areas
           </ButtonItem>
         </PanelSectionRow>
-      </PanelSection>
-
-      <PanelSection title="Status">
         <PanelSectionRow>
-          <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-            <div>
-              Texthooker page:{" "}
-              <b>http://localhost:{status?.delivery.port ?? 8766}/</b>
-            </div>
-            <div>
-              Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
-            </div>
-            <div>
-              Controller:{" "}
-              <b>{status?.monitor.initialized ? "hooked" : "not found"}</b>
-              {" · "}PipeWire:{" "}
-              <b>{status?.capture?.pipewire_source ? "ok" : "no source"}</b>
-            </div>
-          </div>
+          <ButtonItem
+            layout="below"
+            bottomSeparator="none"
+            onClick={() => setShowDebug((v) => !v)}
+          >
+            {showDebug ? "Hide debug info" : "Show debug info"}
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
+
+      {showDebug && (
+        <PanelSection title="DEBUG INFO">
+          <PanelSectionRow>
+            <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+              <div>
+                Texthooker page:{" "}
+                <b>http://localhost:{status?.delivery.port ?? 8766}/</b>
+              </div>
+              <div>
+                Readers connected: <b>{status?.delivery.clients ?? "?"}</b>
+              </div>
+              <div>
+                Controller:{" "}
+                <b>{status?.monitor.initialized ? "hooked" : "not found"}</b>
+                {" · "}PipeWire:{" "}
+                <b>{status?.capture?.pipewire_source ? "ok" : "no source"}</b>
+              </div>
+            </div>
+          </PanelSectionRow>
+        </PanelSection>
+      )}
 
       <PanelSection title="About / sources">
         <PanelSectionRow>
           <div style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
-            VN Lookup is GPL-3.0-or-later; capture, controller-hook, and
+            Japanese Lookup is GPL-3.0-or-later; capture, controller-hook, and
             overlay code are ported from Decky-Translator (cat-in-a-box).
             The built-in dictionary downloads Jitendex (jitendex.org, CC
             BY-SA 4.0), built from JMdict/EDICT by the Electronic Dictionary

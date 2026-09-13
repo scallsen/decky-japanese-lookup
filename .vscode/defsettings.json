@@ -5,7 +5,7 @@
     "deckpass"  : "CHANGE_ME",
     "deckkey"   : "-i ${env:HOME}/.ssh/id_ed25519",
     "deckdir"   : "/home/deck",
-    "pluginname": "VN Lookup",
+    "pluginname": "Japanese Lookup",
     "python.analysis.extraPaths": [
         "./py_modules"
     ]

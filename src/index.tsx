@@ -25,7 +25,7 @@ export default definePlugin(() => {
     const app = Router.MainRunningApp;
     if (!app) return;
     void captureAndMine(button, app.appid).catch((e) => {
-      toaster.toast({ title: "VN Lookup", body: `capture failed: ${e}` });
+      toaster.toast({ title: "Japanese Lookup", body: `capture failed: ${e}` });
     });
   });
 
@@ -83,7 +83,7 @@ export default definePlugin(() => {
       // deckyState is TS-private but present at runtime; internal API, so
       // fail soft — worst case the QAM opens on the last-used view.
       try {
-        (window as any).DeckyPluginLoader?.deckyState?.setActivePlugin?.("VN Lookup");
+        (window as any).DeckyPluginLoader?.deckyState?.setActivePlugin?.("Japanese Lookup");
       } catch {
         /* decky internals changed; QAM still opens */
       }
@@ -92,7 +92,7 @@ export default definePlugin(() => {
     // a failed capture has no result to show in the sidebar, so a toast is
     // the only feedback for it
     if (ev.stage === "error" && ev.message) {
-      toaster.toast({ title: "VN Lookup", body: ev.message });
+      toaster.toast({ title: "Japanese Lookup", body: ev.message });
     }
   };
   addEventListener<[VnlEvent]>("vnl_event", onEvent);
@@ -103,8 +103,8 @@ export default definePlugin(() => {
   routerHook.addGlobalComponent("VnLookupScanOverlay", () => <ScanOverlay />);
 
   return {
-    name: "VN Lookup",
-    titleView: <div className={staticClasses.Title}>VN Lookup</div>,
+    name: "Japanese Lookup",
+    titleView: <div className={staticClasses.Title}>Japanese Lookup</div>,
     content: <Panel />,
     icon: <FaBookOpen />,
     alwaysRender: true,

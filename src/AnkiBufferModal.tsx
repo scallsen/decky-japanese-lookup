@@ -167,13 +167,13 @@ export const AnkiBufferModal: FC<{ settings: Record<string, any>; closeModal?: (
   return (
     <ModalRoot bAllowFullSize onCancel={closeModal} closeModal={closeModal}>
       <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
-        Buffered cards{cards ? ` (${cards.length})` : ""}
+        Anki queue{cards ? ` (${cards.length})` : ""}
       </div>
       <div style={{ maxHeight: "65vh", overflowY: "auto" }}>
         {cards === null ? (
           <div style={{ fontSize: 13, opacity: 0.7 }}>Loading…</div>
         ) : cards.length === 0 ? (
-          <div style={{ fontSize: 13, opacity: 0.7 }}>No cards buffered.</div>
+          <div style={{ fontSize: 13, opacity: 0.7 }}>No cards in Anki queue.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {cards.map((c) => (
