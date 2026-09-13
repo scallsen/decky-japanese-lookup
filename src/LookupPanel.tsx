@@ -22,6 +22,7 @@ import {
   Token,
   tokenizeLine,
 } from "./api";
+import { onFirstWordFocusRequest, takeFirstWordFocus } from "./firstWordFocus";
 
 // POS classes that gamepad focus skips (still touch-tappable): particles,
 // auxiliaries — you rarely look them up, and skipping them makes D-pad
@@ -74,6 +75,15 @@ export const LookupSection: FC<{
   const entriesRef = useRef<HTMLDivElement | null>(null);
   const wantFocusMove = useRef(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
+  // the sentence `tokens` currently belong to (tokenizedFor is set as soon
+  // as a tokenize call starts, this only once its result is rendered)
+  const tokensFor = useRef<string | null>(null);
+  // bumped when a scan requests first-word focus, so a rescan of the same
+  // line (no new tokens) still re-runs the focus effect
+  const [scanSeq, setScanSeq] = useState(0);
+  const firstWordRef = useRef<HTMLDivElement | null>(null);
+  // the word whose definition is showing (or loading)
+  const lookedUp = useRef<number | null>(null);
 
   const refresh = async () => {
     try {
@@ -102,25 +112,42 @@ export const LookupSection: FC<{
     tokenizedFor.current = sentence;
     setSel(null);
     setEntries(null);
+    lookedUp.current = null;
     void tokenizeLine(sentence).then((r) => {
-      if (alive.current && r.ok && r.tokens) setTokens(r.tokens);
+      if (!alive.current || !r.ok || !r.tokens) return;
+      tokensFor.current = sentence;
+      setTokens(r.tokens);
     });
   }, [sentence, status?.runtime_installed]);
 
-  // scroll back to the top of the Lookup section (title included) once the
-  // fresh sentence's words actually render — doing this off the capture
-  // event itself (rather than here) raced the async tokenize call above,
-  // scrolling before the new words (or the QAM) had actually rendered
+  useEffect(() => onFirstWordFocusRequest(() => setScanSeq((n) => n + 1)), []);
+
+  // once the fresh sentence's words actually render: scroll back to the top
+  // of the Lookup section (title included) and, if a scan just opened the
+  // QAM for it, focus its first word so its definition loads right away.
+  // Doing this off the capture event itself raced the async tokenize call
+  // above, scrolling before the new words (or the QAM) had rendered.
   useEffect(() => {
-    if (tokens.length > 0) {
+    if (tokens.length === 0) return;
+    sectionRef.current?.scrollIntoView({ block: "start" });
+    if (!takeFirstWordFocus(tokensFor.current)) return;
+    const first = tokens.findIndex(isContentWord);
+    if (first < 0) return;
+    // a beat for the QAM to finish opening, or it takes focus back
+    const t = setTimeout(() => {
+      firstWordRef.current?.focus();
       sectionRef.current?.scrollIntoView({ block: "start" });
-    }
-  }, [tokens]);
+      void doLookupRef.current(first);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [tokens, scanSeq]);
 
   // D-pad rests on a word for a beat → look it up without pressing A.
   // Debounced so scrolling across the sentence doesn't fire per word.
   const onWordFocus = (i: number) => {
     setFocused(i);
+    // already showing this word (e.g. back up from its definition)
+    if (lookedUp.current === i) return;
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => void doLookup(i), 350);
   };
@@ -145,6 +172,7 @@ export const LookupSection: FC<{
   const doLookup = async (i: number, moveFocus = false) => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     wantFocusMove.current = moveFocus;
+    lookedUp.current = i;
     setSel([i, i]);
     setEntries(null);
     setMessage("");
@@ -176,6 +204,9 @@ export const LookupSection: FC<{
     }
     setEntries(all);
   };
+  // latest doLookup (it closes over this render's tokens), for the timer above
+  const doLookupRef = useRef(doLookup);
+  doLookupRef.current = doLookup;
 
   const addCard = async (e: DictEntry) => {
     setMessage("Adding…");
@@ -255,6 +286,8 @@ export const LookupSection: FC<{
 
   // ---- main lookup UI ----------------------------------------------------
 
+  const firstWordIdx = tokens.findIndex(isContentWord);
+
   return (
     <div ref={sectionRef}>
       <PanelSection title="Lookup">
@@ -299,6 +332,7 @@ export const LookupSection: FC<{
                   return isContentWord(t) ? (
                     <DialogButton
                       key={i}
+                      ref={i === firstWordIdx ? firstWordRef : undefined}
                       style={{
                         width: "fit-content",
                         minWidth: 0,

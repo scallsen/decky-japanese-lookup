@@ -11,6 +11,7 @@ import {
   TextField,
   ToggleField,
 } from "@decky/ui";
+import { addEventListener, removeEventListener } from "@decky/api";
 import { FC, ReactNode, useEffect, useRef, useState } from "react";
 import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
@@ -27,6 +28,7 @@ import {
   Region,
   setSetting,
   UNKNOWN_APP_KEY,
+  VnlEvent,
 } from "./api";
 import { AnkiBufferModal } from "./AnkiBufferModal";
 import { LookupSection } from "./LookupPanel";
@@ -256,9 +258,15 @@ export const Panel: FC = () => {
     void refreshStatus();
     void getAllSettings().then((s) => alive.current && setSettingsState(s));
     const t = setInterval(refreshStatus, 2500);
+    // a finished scan shows up now, not on the next poll
+    const onEvent = (ev: VnlEvent) => {
+      if (ev.stage === "done" || ev.stage === "error") void refreshStatus();
+    };
+    addEventListener<[VnlEvent]>("vnl_event", onEvent);
     return () => {
       alive.current = false;
       clearInterval(t);
+      removeEventListener("vnl_event", onEvent);
     };
   }, []);
 
