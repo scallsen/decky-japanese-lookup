@@ -132,6 +132,9 @@ class RuntimeInstaller:
         self._set_step(step)
         env = worker_env()
         env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        # no ~/.cache/pip: everything installed stays inside the runtime
+        # dir, so deleting it (button or uninstall) removes all of it
+        env["PIP_NO_CACHE_DIR"] = "1"
         with open(self.log_path, "a", encoding="utf-8") as log:
             log.write(f"\n==> {step}: {' '.join(args)}\n")
             log.flush()

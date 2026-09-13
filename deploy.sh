@@ -57,6 +57,7 @@ echo "==> Installing as root + restarting Decky (plugin_loader)"
 sudo_ssh "rm -rf $REMOTE_PLUGINS/$PLUGIN_DIR_NAME \
   && cp -a $REMOTE_STAGE $REMOTE_PLUGINS/$PLUGIN_DIR_NAME \
   && chmod -R u+rwX,go+rX $REMOTE_PLUGINS/$PLUGIN_DIR_NAME \
+  && rm -rf $REMOTE_STAGE \
   && systemctl restart plugin_loader"
 
 echo "==> Done. Check the Quick Access menu on the Deck."

@@ -1,5 +1,6 @@
 import {
   ButtonItem,
+  ConfirmModal,
   DialogButton,
   Dropdown,
   Field,
@@ -14,9 +15,11 @@ import { FC, ReactNode, useEffect, useRef, useState } from "react";
 import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
   clearAnkiBuffer,
+  deleteDownloadedData,
   downloadModels,
   exportAnkiBuffer,
   getAllSettings,
+  getDownloadedDataSize,
   getStatus,
   installAnkiExportRuntime,
   installRuntime,
@@ -51,6 +54,9 @@ const TRIGGER_OPTIONS = [
 // shape for newly-added areas — the default area already covers the usual
 // bottom-third text box, so a second one probably wants more of the screen
 const NEW_AREA_REGION: Region = { x: 0.1, y: 0.08, w: 0.8, h: 0.84 };
+
+const formatMb = (bytes: number) =>
+  bytes < 1_000_000 ? "<1 MB" : `${Math.round(bytes / 1_000_000)} MB`;
 
 // Cheap at-a-glance preview of where a region sits on screen — a grey box
 // standing in for the display, with a blue box for the region, positioned
@@ -166,6 +172,8 @@ export const Panel: FC = () => {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [deletingData, setDeletingData] = useState(false);
+  const [dataMsg, setDataMsg] = useState("");
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
 
@@ -195,6 +203,35 @@ export const Panel: FC = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleDeleteData = async () => {
+    setDataMsg("");
+    const { bytes } = await getDownloadedDataSize();
+    showModal(
+      <ConfirmModal
+        strTitle="Delete downloaded data?"
+        strDescription={
+          `Removes the OCR runtime, OCR models and dictionary (${formatMb(bytes)}). ` +
+          "Your settings, capture areas and Anki queue are kept. " +
+          "You'll need to download everything again to use the plugin."
+        }
+        strOKButtonText="Delete"
+        bDestructiveWarning
+        onOK={async () => {
+          setDeletingData(true);
+          try {
+            const r = await deleteDownloadedData();
+            setDataMsg(
+              r.ok ? `Deleted ${formatMb(r.freed_bytes ?? 0)} of downloaded data` : r.error ?? "delete failed"
+            );
+            void refreshStatus();
+          } finally {
+            setDeletingData(false);
+          }
+        }}
+      />
+    );
   };
 
   const refreshStatus = async () => {
@@ -534,6 +571,22 @@ export const Panel: FC = () => {
             Delete all capture areas
           </ButtonItem>
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            disabled={
+              deletingData || !!status?.runtime?.installing || !!status?.models?.downloading
+            }
+            onClick={() => void handleDeleteData()}
+          >
+            {deletingData ? "Deleting…" : "Delete downloaded data"}
+          </ButtonItem>
+        </PanelSectionRow>
+        {dataMsg ? (
+          <PanelSectionRow>
+            <div style={{ fontSize: 12, color: "#dcae3c" }}>{dataMsg}</div>
+          </PanelSectionRow>
+        ) : null}
         <PanelSectionRow>
           <ButtonItem
             layout="below"
