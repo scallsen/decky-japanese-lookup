@@ -22,7 +22,8 @@ on the Deck itself.
 ## Contents
 
 - [What you need](#what-you-need)
-- [Install](#install) — one-time, about 20–30 minutes
+- [Quick install (no computer needed)](#quick-install-no-computer-needed)
+- [Install from source](#install-from-source) — one-time, about 20–30 minutes
 - [First launch on the Deck](#first-launch-on-the-deck)
 - [Everyday use](#everyday-use)
 - [Updating](#updating)
@@ -43,13 +44,51 @@ on the Deck itself.
 - *(Only for Anki)* **AnkiMobile** (iOS) or **AnkiDroid** (Android) on a phone
   on the same Wi-Fi.
 
-There's no prebuilt download yet — you build the plugin from this repository
-and a script copies it to your Deck over the network. The steps below walk
-you through it.
+---
+
+## Quick install (no computer needed)
+
+Every [release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
+includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH required.
+This uses Decky's own zip-sideloading, the same mechanism other unlisted
+plugins use since this one isn't on the Decky store.
+
+1. **Install [Decky Loader](https://decky.xyz/)** first, if you haven't
+   already — it's the plugin loader this plugin runs on top of. In Desktop
+   Mode (**Steam button → Power → Switch to Desktop**), open a browser, go
+   to [decky.xyz](https://decky.xyz/), download the installer, and run it
+   (choose the *release* version). Switch back to Gaming Mode when it's done.
+2. On the Deck, download the zip from the
+   [latest release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
+   (Desktop Mode's browser is easiest, but Gaming Mode's works too).
+3. Open Quick Access (**…**) → the **Decky** tab (plug icon) → the gear icon
+   → **General**, and turn on **Developer Mode** at the bottom.
+4. A new **Developer** tab appears. Open it → **Install from zip** → browse
+   to the file you downloaded (usually in `Downloads`) → select it.
+5. Wait for it to finish, then check the **Decky** tab again — restart Decky
+   Loader (`systemctl restart plugin_loader` in Konsole, or just reboot) if
+   **Japanese Lookup** doesn't show up right away.
+
+Then skip ahead to [First launch on the Deck](#first-launch-on-the-deck).
+
+To update later, just repeat these steps with the newest release's zip — it
+overwrites the old install and keeps your settings, dictionary, and Anki
+queue.
+
+Sideloaded zips aren't Decky's officially supported install path and can be
+flakier than the store, so if step 4 hangs or the plugin never appears, fall
+back to [installing from source](#install-from-source) below.
 
 ---
 
-## Install
+## Install from source
+
+Building it yourself also works, and is the only option if you want to
+change the code. You build the plugin from this repository and a script
+copies it to your Deck over the network. The steps below walk you through
+it.
+
+---
 
 ### Step 1 — Prepare the Deck (Desktop Mode)
 
