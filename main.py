@@ -437,11 +437,12 @@ class Plugin:
         return {"started": self.dictionary.start_import(download_jitendex)}
 
     async def create_anki_card(self, expression: str, reading: str,
-                               glosses: str, sentence: str, game: str = ""):
+                               glosses: str, sentence: str, game: str = "",
+                               word_type: str = ""):
         """Buffer a card for later batch export as a .apkg via QR code."""
         if not self.settings.get("anki_enabled"):
             return {"ok": False, "error": "Anki integration is disabled in settings"}
-        self.anki_buffer.add(expression, reading, glosses, sentence, game)
+        self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
         return {"ok": True, "buffered": self.anki_buffer.count()}
 
     async def clear_anki_buffer(self):
@@ -473,6 +474,7 @@ class Plugin:
             ("expression", "anki_expression_field"),
             ("reading", "anki_reading_field"),
             ("glossary", "anki_glossary_field"),
+            ("word_type", "anki_word_type_field"),
             ("sentence", "anki_sentence_field"),
             ("game", "anki_game_field"),
         ):

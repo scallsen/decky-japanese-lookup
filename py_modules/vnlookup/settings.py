@@ -41,6 +41,9 @@ DEFAULTS: dict[str, Any] = {
     "anki_reading_field": "",
     "anki_glossary_field": "Back",
     "anki_sentence_field": "Sentence",
+    # the dictionary's part-of-speech tags for the looked-up word (e.g.
+    # "v1", "adj-i", "n") — written to the back of the card only
+    "anki_word_type_field": "Word Type",
     # the running game's display name at capture time, written to the back
     # of the card only (see ROLE_ORDER in anki_export_worker.py)
     "anki_game_field": "Game",

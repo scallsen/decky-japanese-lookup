@@ -186,7 +186,7 @@ export const LookupSection: FC<{
     setMessage("Buffering…");
     const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
-      e.expression, e.reading, e.glosses, sentence ?? "", game);
+      e.expression, e.reading, e.glosses, sentence ?? "", game, e.tags);
     setMessage(r.ok ? `✓ Buffered (${e.expression}) — ${r.buffered} pending` : `✗ ${r.error}`);
   };
 

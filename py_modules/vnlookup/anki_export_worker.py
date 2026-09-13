@@ -4,9 +4,11 @@ runtime (genanki is only installed there; nothing heavy is imported into
 the Decky process, mirroring ocr_worker.py's convention).
 
 Reads opts JSON from stdin:
-  {"cards": [{"id","expression","reading","glosses","sentence","game"}, ...],
+  {"cards": [{"id","expression","reading","glosses","sentence","game",
+              "word_type"}, ...],
    "deck_name", "deck_id", "note_type_name", "model_id",
-   "field_map": {"expression"|"reading"|"glossary"|"sentence"|"game": "<field name>"},
+   "field_map": {"expression"|"reading"|"glossary"|"word_type"|"sentence"|
+                 "game": "<field name>"},
    "out_path"}
 Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 """
@@ -14,21 +16,24 @@ Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 import json
 import sys
 
-# "game" last so it always lands on the back (afmt), never the front
-# (qfmt, which is always roles[0]) — the game a card came from is
-# reference info, not part of what you're being quizzed on.
-ROLE_ORDER = ["expression", "reading", "glossary", "sentence", "game"]
+# Back-of-card order: glossary, word_type, sentence, game — reading sits
+# right after expression (it's default-unconfigured, see settings.py, but
+# if enabled it belongs right under the word it's the reading of, not
+# mixed in with the rest). "game" stays last: reference info, not part of
+# what you're being quizzed on.
+ROLE_ORDER = ["expression", "reading", "glossary", "word_type", "sentence", "game"]
 # buffered-card dict key for each role (glossary role holds the "glosses" key)
 CARD_KEY = {"expression": "expression", "reading": "reading",
-            "glossary": "glosses", "sentence": "sentence", "game": "game"}
+            "glossary": "glosses", "word_type": "word_type",
+            "sentence": "sentence", "game": "game"}
 
 # Each field is wrapped in a role-tagged block so the CSS below can give
-# the word/reading/glossary/sentence/game roles genuinely different visual
-# weight, rather than one uniform font-size for the whole card. Design
-# intent: glossary + sentence are what you're actually testing yourself on
-# — they should read as the main content. expression is the big prompt on
-# both sides (repeated via {{FrontSide}} on the back). reading and game are
-# reference info, kept small and muted so they don't compete for attention.
+# each role genuinely different visual weight, rather than one uniform
+# font-size for the whole card. Design intent: glossary + sentence are what
+# you're actually testing yourself on — the main content, medium-large.
+# expression is the big prompt on both sides (repeated via {{FrontSide}} on
+# the back). reading and word_type are small secondary detail; game is the
+# smallest, purely-reference info.
 _CSS = """
 .card {
  font-family: "Noto Sans CJK JP", "Hiragino Sans", "Yu Gothic", arial, sans-serif;
@@ -45,7 +50,7 @@ _CSS = """
  font-size: 22px;
  margin-top: 12px;
 }
-.r-reading {
+.r-reading, .r-word_type {
  font-size: 16px;
  color: #666;
  margin-top: 4px;

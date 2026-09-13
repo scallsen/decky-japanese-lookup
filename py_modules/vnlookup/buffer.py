@@ -32,8 +32,8 @@ class PendingCards:
         os.replace(tmp, self.path)
 
     def add(self, expression: str, reading: str, glosses: str, sentence: str,
-            game: str = "") -> dict:
-        """Add a card, or update glosses/game in place if the same
+            game: str = "", word_type: str = "") -> dict:
+        """Add a card, or update glosses/game/word_type in place if the same
         expression/reading/sentence is already buffered (repeated +Anki
         taps on the same word don't grow the buffer)."""
         for card in self._data:
@@ -41,6 +41,7 @@ class PendingCards:
                     and card["sentence"] == sentence):
                 card["glosses"] = glosses
                 card["game"] = game
+                card["word_type"] = word_type
                 self.save()
                 return card
         card = {
@@ -50,6 +51,7 @@ class PendingCards:
             "glosses": glosses,
             "sentence": sentence,
             "game": game,
+            "word_type": word_type,
         }
         self._data.append(card)
         self.save()

@@ -27,7 +27,7 @@ EXPORT_TIMEOUT = 60
 # note type, however the user may have since customized it), and only
 # newly-exported cards land on the new one. Bump this — any change is
 # fine — every time the default template/CSS changes.
-TEMPLATE_VERSION = 2
+TEMPLATE_VERSION = 3
 
 
 class AnkiExportError(Exception):
