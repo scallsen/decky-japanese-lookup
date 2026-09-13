@@ -6,9 +6,9 @@ Modes:
       opts: {"image_path", "models_dir", "min_confidence", "region",
              "crop_out"}
       region is {"x","y","w","h"} in 0-1 fractions of the frame, optional.
-      If crop_out is set, the cropped region is also saved there (PNG) for
-      Anki cards. Prints JSON: {"error", "regions": [{text, rect,
-      confidence}], "crop_path"}.
+      If crop_out is set, the cropped region is also saved there (PNG).
+      Prints JSON: {"error", "regions": [{text, rect, confidence}],
+      "crop_path", "width", "height"}.
 
   encode_raw: ocr_worker.py encode_raw <width> <height> <out_png>
       Reads raw RGB24 bytes from stdin, writes a PNG. Used when the system
@@ -22,15 +22,16 @@ Modes:
 import json
 import os
 import sys
+from typing import NoReturn
 
-# Single-threaded ONNX before heavy imports — mirrors Decky-Translator's
-# fix for asyncio deadlocks when the parent awaits the subprocess.
+# Cap native thread pools before the heavy imports — mirrors
+# Decky-Translator's fix for deadlocks when the parent awaits the subprocess.
 os.environ.setdefault('OMP_NUM_THREADS', '4')
 os.environ.setdefault('MKL_NUM_THREADS', '4')
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '4')
 
 
-def _fail(msg, **extra):
+def _fail(msg, **extra) -> NoReturn:
     print(json.dumps({"error": msg, **extra}, ensure_ascii=False))
     sys.exit(0)
 
@@ -85,7 +86,7 @@ def cmd_recognize(opts):
 
     try:
         import numpy as np
-        from rapidocr import RapidOCR, EngineType
+        from rapidocr import EngineType, RapidOCR
 
         det_model = os.path.join(models_dir, "ch_PP-OCRv5_mobile_det.onnx")
         cls_model = os.path.join(models_dir, "ch_ppocr_mobile_v2.0_cls_infer.onnx")
@@ -145,6 +146,7 @@ def cmd_recognize(opts):
 
 def cmd_encode_raw(width, height, out_png):
     from io import BytesIO
+
     from PIL import Image, ImageStat
 
     raw = sys.stdin.buffer.read()

@@ -125,8 +125,7 @@ export const RegionEditorModal: FC<{
       });
     }
     return stopRepeat;
-  }, []);
-
+  }, [initialImage]);
 
   const frac = (e: { clientX: number; clientY: number }) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -145,12 +144,16 @@ export const RegionEditorModal: FC<{
     if (d.kind === "move") {
       setRegion(clampRegion({ ...d.orig, x: d.orig.x + dx, y: d.orig.y + dy }));
     } else {
-      let { x, y, w, h } = d.orig;
-      if (d.corner.includes("w")) { x = d.orig.x + dx; w = d.orig.w - dx; }
-      else { w = d.orig.w + dx; }
-      if (d.corner.includes("n")) { y = d.orig.y + dy; h = d.orig.h - dy; }
-      else { h = d.orig.h + dy; }
-      setRegion(clampRegion({ x, y, w, h }));
+      // west/north handles move the origin and shrink; east/south just grow
+      const { orig } = d;
+      const west = d.corner.includes("w");
+      const north = d.corner.includes("n");
+      setRegion(clampRegion({
+        x: west ? orig.x + dx : orig.x,
+        y: north ? orig.y + dy : orig.y,
+        w: west ? orig.w - dx : orig.w + dx,
+        h: north ? orig.h - dy : orig.h + dy,
+      }));
     }
   };
 

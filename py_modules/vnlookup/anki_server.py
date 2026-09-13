@@ -82,8 +82,7 @@ class AnkiExportServer:
         await site.start()
 
         self._served.clear()
-        self._shutdown_task = asyncio.get_event_loop().create_task(
-            self._auto_shutdown())
+        self._shutdown_task = asyncio.create_task(self._auto_shutdown())
         url = f"http://{ip}:{port}/{token}/{FILENAME}"
         logger.info(f"anki export server on {url}")
         return url

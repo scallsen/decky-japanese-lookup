@@ -29,4 +29,6 @@ jobs:
           node-version: 22 # pnpm 11 needs node >= 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
       - run: pnpm build

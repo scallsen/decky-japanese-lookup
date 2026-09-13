@@ -15,6 +15,7 @@ Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 
 import json
 import sys
+from typing import NoReturn
 
 # Back-of-card order: reading first (right under the word it's the
 # reading of, same visual weight as the word itself), then glossary,
@@ -71,21 +72,13 @@ _CSS = """
 }
 """
 
-# Frozen (not time.time()) so every export looks *older* than any local
-# edit the user makes afterward. This is belt-and-suspenders, not the
-# actual mechanism that gets a shipped design update into an
-# already-imported collection — that's TEMPLATE_VERSION in
-# anki_export.py, folded into the model_id itself, because on-device
-# testing found AnkiMobile's plain .apkg import just keeps an existing
-# note type's template/CSS as-is on an ID match, with no mod-time
-# comparison happening at all (whatever the sync-time collision policy
-# is, it evidently isn't consulted for a bare package import). A frozen
-# timestamp can't fix that — nothing here needs bumping for a design
-# change anymore, only TEMPLATE_VERSION does.
+# Frozen (not time.time()) so every export looks older than any local edit
+# the user makes afterwards. Design updates are delivered by bumping
+# TEMPLATE_VERSION in anki_export.py, not by this timestamp.
 _FROZEN_TIMESTAMP = 1735776000  # 2025-01-02T00:00:00Z
 
 
-def _fail(msg, **extra):
+def _fail(msg, **extra) -> NoReturn:
     print(json.dumps({"error": msg, **extra}, ensure_ascii=False))
     sys.exit(0)
 
@@ -95,19 +88,16 @@ def main():
         opts = json.load(sys.stdin)
     except json.JSONDecodeError as e:
         _fail(f"bad opts JSON: {e}")
-        return
 
     try:
         import genanki
     except Exception as e:
         _fail(f"genanki not available: {e}")
-        return
 
     field_map = opts.get("field_map") or {}
     roles = [r for r in ROLE_ORDER if r in field_map]
     if not roles:
         _fail("no Anki fields configured")
-        return
 
     def field_block(role):
         return f'<div class="r-{role}">{{{{{field_map[role]}}}}}</div>'
@@ -138,7 +128,6 @@ def main():
     except Exception as e:
         import traceback
         _fail(f"apkg build failed: {e}", trace=traceback.format_exc())
-        return
 
     print(json.dumps({"error": None, "path": opts["out_path"],
                       "count": len(opts.get("cards", []))}))

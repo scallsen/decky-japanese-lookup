@@ -45,7 +45,6 @@ class ModelDownloader:
         self._downloading = False
         self._progress = 0.0
         self._error = None
-        self._cancel = False
         self._lock = threading.Lock()
         os.makedirs(base_dir, exist_ok=True)
         shutil.rmtree(self._staging, ignore_errors=True)
@@ -70,14 +69,9 @@ class ModelDownloader:
                 return False
             self._downloading = True
             self._error = None
-            self._cancel = False
             self._progress = 0.0
         threading.Thread(target=self._download, daemon=True).start()
         return True
-
-    def cancel(self):
-        with self._lock:
-            self._cancel = True
 
     def _download(self):
         try:
@@ -92,9 +86,6 @@ class ModelDownloader:
                                             context=ssl_context()) as resp, \
                         open(dest, "wb") as out:
                     while True:
-                        with self._lock:
-                            if self._cancel:
-                                raise InterruptedError("cancelled")
                         chunk = resp.read(65536)
                         if not chunk:
                             break
@@ -106,8 +97,6 @@ class ModelDownloader:
             os.replace(self._staging, self.target_dir)
             with self._lock:
                 self._progress = 1.0
-        except InterruptedError:
-            shutil.rmtree(self._staging, ignore_errors=True)
         except Exception as e:
             logger.error(f"model download failed: {e}")
             shutil.rmtree(self._staging, ignore_errors=True)

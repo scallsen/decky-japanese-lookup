@@ -1,40 +1,33 @@
 // Trigger watcher: polls the backend's hidraw button state and fires the
-// capture pipeline when a button assigned to a capture area is held long
-// enough. Polling (rather than events) mirrors Decky-Translator — it is
-// robust against missed packets and multiple frontend instances.
+// capture pipeline when a button assigned to a capture area is pressed.
+// Polling (rather than events) mirrors Decky-Translator — it is robust
+// against missed packets and multiple frontend instances.
 
 import { getButtonState } from "./api";
 
 export type TriggerButton = "L4" | "R4" | "L5" | "R5";
 
-export const TRIGGER_BUTTONS: TriggerButton[] = ["L4", "R4", "L5", "R5"];
-
-interface PressState {
-  pressStart: number | null;
-  fired: boolean;
-}
+const POLL_MS = 100;
+// minimum gap between two captures, across all buttons
+const COOLDOWN_MS = 800;
 
 export class TriggerWatcher {
   private interval: ReturnType<typeof setInterval> | null = null;
-  private pollMs = 100;
-
   private watched: TriggerButton[] = [];
-  private holdMs = 250;
-
-  private press: Record<string, PressState> = {};
+  // buttons currently held that have already fired for this press
+  private fired = new Set<TriggerButton>();
   private cooldownUntil = 0;
 
   constructor(private onTrigger: (button: TriggerButton) => void) {}
 
-  configure(watched: TriggerButton[], holdMs: number) {
+  configure(watched: TriggerButton[]) {
     this.watched = watched;
-    this.holdMs = holdMs;
-    this.press = {};
+    this.fired.clear();
   }
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(() => void this.poll(), this.pollMs);
+    this.interval = setInterval(() => void this.poll(), POLL_MS);
   }
 
   stop() {
@@ -58,21 +51,12 @@ export class TriggerWatcher {
 
     const now = Date.now();
     for (const button of this.watched) {
-      const st = (this.press[button] ??= { pressStart: null, fired: false });
-      if (pressed.has(button)) {
-        if (st.pressStart === null) {
-          st.pressStart = now;
-          st.fired = false;
-        }
-        if (!st.fired && now >= this.cooldownUntil &&
-            now - st.pressStart >= this.holdMs) {
-          st.fired = true;
-          this.cooldownUntil = now + 800;
-          this.onTrigger(button);
-        }
-      } else {
-        st.pressStart = null;
-        st.fired = false;
+      if (!pressed.has(button)) {
+        this.fired.delete(button);
+      } else if (!this.fired.has(button) && now >= this.cooldownUntil) {
+        this.fired.add(button);
+        this.cooldownUntil = now + COOLDOWN_MS;
+        this.onTrigger(button);
       }
     }
   }
