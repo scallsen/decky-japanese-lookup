@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS terms (
     expression TEXT,
     reading TEXT,
     glosses TEXT,
+    word_type TEXT,
     tags TEXT,
     score INTEGER
 );
@@ -58,14 +59,26 @@ CREATE INDEX IF NOT EXISTS idx_meta_expr ON term_meta(expression);
 """
 
 
-def flatten_content(node) -> str:
-    """Flatten Yomitan structured content to plain text."""
+def flatten_content(node, pos_out: list = None) -> str:
+    """Flatten Yomitan structured content to plain text.
+
+    When `pos_out` is given, part-of-speech-info spans (Jitendex's "noun",
+    "transitive verb", etc.) are collected into it, in order, and excluded
+    from the returned text — rather than left inline as a bare text line
+    for something downstream to guess is a header and not a real gloss.
+    This must happen here, while the tree still carries that semantic
+    marker (data-content == "part-of-speech-info"); by the time glosses
+    are flattened to plain text there is no reliable way to tell "a POS
+    header" apart from "a real gloss that happens to sit on its own line"
+    (e.g. right at the boundary between two dictionary rows joined by
+    _entries). Omit pos_out (the default) to keep the old inline behavior.
+    """
     if node is None:
         return ""
     if isinstance(node, str):
         return node
     if isinstance(node, list):
-        return "".join(flatten_content(x) for x in node)
+        return "".join(flatten_content(x, pos_out) for x in node)
     if isinstance(node, dict):
         if "text" in node and "content" not in node:
             return str(node.get("text") or "")
@@ -78,7 +91,12 @@ def flatten_content(node) -> str:
             # entry already carries the dict title, and full acknowledgement
             # lives in the plugin's "About / sources" settings section
             return ""
-        inner = flatten_content(node.get("content"))
+        if semantic == "part-of-speech-info" and pos_out is not None:
+            label = flatten_content(node.get("content")).strip()
+            if label:
+                pos_out.append(label)
+            return ""
+        inner = flatten_content(node.get("content"), pos_out)
         if tag == "li":
             inner = "• " + inner.strip() + "\n"
         elif tag in ("ul", "ol"):
@@ -93,7 +111,7 @@ def flatten_content(node) -> str:
     return str(node)
 
 
-def flatten_glosses(glosses) -> str:
+def flatten_glosses(glosses, pos_out: list = None) -> str:
     parts = []
     for g in glosses or []:
         if isinstance(g, str):
@@ -103,17 +121,28 @@ def flatten_glosses(glosses) -> str:
             if gtype == "text":
                 parts.append(g.get("text", ""))
             elif gtype == "structured-content":
-                parts.append(flatten_content(g.get("content")))
+                parts.append(flatten_content(g.get("content"), pos_out))
             elif gtype == "image":
                 continue
             else:
-                parts.append(flatten_content(g))
+                parts.append(flatten_content(g, pos_out))
         else:
-            parts.append(flatten_content(g))
+            parts.append(flatten_content(g, pos_out))
     text = "\n".join(p.strip() for p in parts if p and p.strip())
     # collapse blank lines and per-line leftover whitespace
     lines = [ln.rstrip() for ln in text.splitlines()]
     return "\n".join(ln for ln in lines if ln)
+
+
+def _term_row(dict_id: int, r: list) -> tuple:
+    """One term_bank_N.json row -> a terms table row, splitting the
+    part-of-speech header out of the glosses text (see flatten_content's
+    pos_out) into its own word_type column."""
+    pos: list[str] = []
+    glosses = flatten_glosses(r[5], pos)
+    tags = " ".join(filter(None, [r[2], r[7] if len(r) > 7 else ""]))
+    return (dict_id, r[0], r[1] or "", glosses, ", ".join(pos),
+            tags, int(r[4]) if r[4] else 0)
 
 
 _MAX_GLOSS_SENSES = 3
@@ -124,42 +153,17 @@ def _cap_glosses(text: str, max_senses: int = _MAX_GLOSS_SENSES) -> str:
 
     A common JMdict entry runs to 15+ senses; joined across every matching
     dictionary row (see _entries), that's the entire dictionary entry
-    pasted into the word-lookup panel and onto every Anki card. A "• "
-    line is one sense; a bare line is a POS-group header only when a
-    bulleted line immediately follows it — otherwise it's itself a
-    standalone sense (e.g. simple single-gloss rows with no sense list at
-    all, or entries with no structured content).
+    pasted into the word-lookup panel and onto every Anki card. Each
+    non-blank line is one sense — POS-group headers ("noun", "transitive
+    verb") are extracted separately at flatten time (flatten_content's
+    pos_out) rather than left inline in this text, so unlike an earlier
+    version of this function there's no ambiguity here to resolve: every
+    line reaching this point already is a real gloss.
     """
     lines = text.splitlines()
-    is_header = [
-        not ln.startswith("• ") and i + 1 < len(lines) and lines[i + 1].startswith("• ")
-        for i, ln in enumerate(lines)
-    ]
-    kept: list[str] = []
-    senses = 0
-    truncated = False
-    i = 0
-    while i < len(lines):
-        if is_header[i]:
-            if senses >= max_senses:
-                truncated = True
-                i += 1
-                while i < len(lines) and lines[i].startswith("• "):
-                    i += 1
-                continue
-            kept.append(lines[i])
-            i += 1
-            continue
-        if senses >= max_senses:
-            truncated = True
-            i += 1
-            continue
-        kept.append(lines[i])
-        senses += 1
-        i += 1
-    if truncated:
-        kept.append("…")
-    return "\n".join(kept)
+    if len(lines) <= max_senses:
+        return text
+    return "\n".join([*lines[:max_senses], "…"])
 
 
 def _freq_value(data):
@@ -194,6 +198,13 @@ class Dictionary:
             # mid-transaction; sticky once set on the file
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
+            # migrate a terms table created before word_type existed —
+            # ADD COLUMN always appends at the end regardless of where it
+            # sits in SCHEMA above, which is fine: the INSERT in
+            # _import_zip addresses columns by name, not position
+            cols = {row[1] for row in db.execute("PRAGMA table_info(terms)")}
+            if "word_type" not in cols:
+                db.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
 
     def _connect(self):
         return sqlite3.connect(self.db_path, timeout=10)
@@ -329,12 +340,10 @@ class Dictionary:
                              for r in rows))
                     else:
                         db.executemany(
-                            "INSERT INTO terms VALUES (?, ?, ?, ?, ?, ?)",
-                            ((dict_id, r[0], r[1] or "",
-                              flatten_glosses(r[5]),
-                              " ".join(filter(None, [r[2], r[7] if len(r) > 7 else ""])),
-                              int(r[4]) if r[4] else 0)
-                             for r in rows))
+                            "INSERT INTO terms "
+                            "(dict_id, expression, reading, glosses, word_type, "
+                            " tags, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (_term_row(dict_id, r) for r in rows))
                     # bound the write transaction so status reads stay fresh
                     db.commit()
                     self._set(progress=base + span * (0.6 + 0.4 * (j + 1) / len(banks)))
@@ -348,7 +357,7 @@ class Dictionary:
     def lookup(self, queries, limit: int = 24) -> list:
         """Try each query string in order; return entries for the first hit.
 
-        Entry: {expression, reading, glosses, tags, dict, score,
+        Entry: {expression, reading, glosses, word_type, tags, dict, score,
                 frequency, pitch}
         """
         db = self._connect()
@@ -357,8 +366,8 @@ class Dictionary:
                 if not q:
                     continue
                 rows = db.execute(
-                    "SELECT t.expression, t.reading, t.glosses, t.tags, "
-                    "       t.score, d.title "
+                    "SELECT t.expression, t.reading, t.glosses, t.word_type, "
+                    "       t.tags, t.score, d.title "
                     "FROM terms t JOIN dictionaries d ON d.id = t.dict_id "
                     "WHERE t.expression = ? OR "
                     "      (t.reading = ? AND t.reading != '') "
@@ -378,8 +387,8 @@ class Dictionary:
             for ln in range(min(len(text), max_len), 0, -1):
                 q = text[:ln]
                 rows = db.execute(
-                    "SELECT t.expression, t.reading, t.glosses, t.tags, "
-                    "       t.score, d.title "
+                    "SELECT t.expression, t.reading, t.glosses, t.word_type, "
+                    "       t.tags, t.score, d.title "
                     "FROM terms t JOIN dictionaries d ON d.id = t.dict_id "
                     "WHERE t.expression = ? ORDER BY t.score DESC LIMIT 16",
                     (q,)).fetchall()
@@ -393,7 +402,7 @@ class Dictionary:
         # group by (expression, reading); merge glosses across dictionaries
         grouped = {}
         order = []
-        for expr, reading, glosses, tags, score, dtitle in rows:
+        for expr, reading, glosses, word_type, tags, score, dtitle in rows:
             key = (expr, reading)
             if key not in grouped:
                 grouped[key] = {
@@ -401,18 +410,24 @@ class Dictionary:
                     "reading": reading,
                     "matched": matched,
                     "glosses": [],
+                    "word_types": [],
                     "tags": tags.strip(),
                     "dicts": [],
                     "score": score,
                 }
                 order.append(key)
             grouped[key]["glosses"].append(glosses)
+            if word_type:
+                for wt in word_type.split(", "):
+                    if wt not in grouped[key]["word_types"]:
+                        grouped[key]["word_types"].append(wt)
             if dtitle not in grouped[key]["dicts"]:
                 grouped[key]["dicts"].append(dtitle)
 
         entries = [grouped[k] for k in order]
         for e in entries:
             e["glosses"] = _cap_glosses("\n".join(e["glosses"]))
+            e["word_type"] = ", ".join(e.pop("word_types"))
             e["frequency"] = self._frequency(db, e["expression"])
             e["pitch"] = self._pitch(db, e["expression"], e["reading"])
         return entries

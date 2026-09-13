@@ -38,6 +38,7 @@ export interface DictEntry {
   reading: string;
   matched: string;
   glosses: string;
+  word_type: string;
   tags: string;
   dicts: string[];
   frequency: string | null;

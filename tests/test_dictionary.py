@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import time
 import zipfile
 
@@ -46,6 +47,33 @@ def test_import_counts(dic):
     assert st["dictionaries"] == ["TestDict"]
     assert st["term_count"] == 4
     assert st["ready"]
+
+
+def test_migrates_pre_word_type_database(tmp_path):
+    # simulate an already-imported DB from before word_type existed —
+    # opening it must not crash, and must add the column so a re-import
+    # (or a fresh one) can populate it
+    db_path = tmp_path / "dict.sqlite3"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript("""
+        CREATE TABLE dictionaries (id INTEGER PRIMARY KEY, title TEXT UNIQUE,
+                                    revision TEXT, kind TEXT);
+        CREATE TABLE terms (dict_id INTEGER, expression TEXT, reading TEXT,
+                             glosses TEXT, tags TEXT, score INTEGER);
+        CREATE TABLE term_meta (dict_id INTEGER, expression TEXT, mode TEXT,
+                                 data TEXT);
+        INSERT INTO dictionaries VALUES (1, 'Old', '1', 'term');
+        INSERT INTO terms VALUES (1, '古い', 'ふるい', 'old', '', 1);
+    """)
+    conn.commit()
+    conn.close()
+
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    d = Dictionary(str(db_path), str(dicts_dir))
+    entries = d.lookup(["古い"])
+    assert entries[0]["glosses"] == "old"
+    assert entries[0]["word_type"] == ""
 
 
 def test_lookup_by_expression_with_meta(dic):
@@ -144,36 +172,51 @@ def test_flatten_plain_string_glosses():
     assert flatten_glosses(["to eat", "to devour"]) == "to eat\nto devour"
 
 
-# ---- gloss capping ---------------------------------------------------------
+def test_flatten_extracts_pos_labels_when_requested():
+    # opt-in via pos_out: the labels are excluded from the returned text
+    # entirely rather than left inline as an ambiguous bare line
+    pos = []
+    out = flatten_glosses(sc([
+        {"tag": "div", "data": {"content": "sense-group"}, "content": [
+            {"tag": "span", "data": {"content": "part-of-speech-info"},
+             "content": "noun"},
+            {"tag": "span", "data": {"content": "part-of-speech-info"},
+             "content": "na-adj"},
+            {"tag": "ul", "data": {"content": "glossary"}, "content": [
+                {"tag": "li", "content": "anxiety"},
+            ]},
+        ]},
+    ]), pos)
+    assert out.splitlines() == ["• anxiety"]
+    assert pos == ["noun", "na-adj"]
+
+
+def test_flatten_pos_extraction_omitted_by_default():
+    # no pos_out given -> old inline behavior, unchanged (e.g. for direct
+    # callers that still want the header inline)
+    out = flatten_glosses(sc([
+        {"tag": "span", "data": {"content": "part-of-speech-info"}, "content": "noun"},
+        {"tag": "ul", "content": [{"tag": "li", "content": "anxiety"}]},
+    ]))
+    assert out.splitlines() == ["noun", "• anxiety"]
+
+
+# ---- gloss capping ----------------------------------------------------------
 
 def test_cap_glosses_under_limit_is_unchanged():
     text = "• one\n• two"
     assert _cap_glosses(text, max_senses=3) == text
 
 
-def test_cap_glosses_truncates_bulleted_senses():
+def test_cap_glosses_truncates():
     text = "\n".join(f"• sense {i}" for i in range(6))
     out = _cap_glosses(text, max_senses=3)
     assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2", "…"]
 
 
-def test_cap_glosses_drops_orphaned_header():
-    # a POS-group header whose senses are entirely past the cap shouldn't
-    # linger on its own
-    text = "\n".join(["• a", "• b", "• c", "noun", "• d", "• e"])
-    out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• a", "• b", "• c", "…"]
-
-
-def test_cap_glosses_keeps_header_when_a_sense_survives():
-    text = "\n".join(["• a", "• b", "noun", "• c", "• d"])
-    out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• a", "• b", "noun", "• c", "…"]
-
-
-def test_cap_glosses_caps_bare_lines_with_no_bullets():
+def test_cap_glosses_handles_bare_lines_too():
     # cross-dictionary joins in _entries can produce several flat,
-    # non-bulleted lines (one per simple-gloss row) with no bullets at all
+    # non-bulleted lines (one per simple-gloss row)
     text = "\n".join(f"gloss {i}" for i in range(5))
     out = _cap_glosses(text, max_senses=3)
     assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2", "…"]
@@ -201,6 +244,38 @@ def test_lookup_caps_many_senses(tmp_path):
     lines = entries[0]["glosses"].splitlines()
     assert len(lines) == 4  # 3 senses + the truncation marker
     assert lines[-1] == "…"
+    assert entries[0]["word_type"] == ""
+
+
+def test_lookup_extracts_word_type_from_pos_header(tmp_path):
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    with zipfile.ZipFile(dicts_dir / "test.zip", "w") as z:
+        z.writestr("index.json", json.dumps(
+            {"title": "TestDict", "revision": "1", "format": 3}))
+        content = sc([
+            {"tag": "div", "data": {"content": "sense-group"}, "content": [
+                {"tag": "span", "data": {"content": "part-of-speech-info"},
+                 "content": "noun"},
+                {"tag": "span", "data": {"content": "part-of-speech-info"},
+                 "content": "na-adj"},
+                {"tag": "ul", "data": {"content": "glossary"}, "content": [
+                    {"tag": "li", "content": "anxiety"},
+                    {"tag": "li", "content": "worry"},
+                ]},
+            ]},
+        ])
+        z.writestr("term_bank_1.json", json.dumps([
+            ["不安", "ふあん", "n,adj-na", "", 100, content, 1, ""],
+        ]))
+    d = Dictionary(str(tmp_path / "dict.sqlite3"), str(dicts_dir))
+    assert d.start_import()
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    entries = d.lookup(["不安"])
+    assert entries[0]["word_type"] == "noun, na-adj"
+    assert "noun" not in entries[0]["glosses"]
+    assert "• anxiety" in entries[0]["glosses"]
 
 
 def test_freq_value_shapes():
