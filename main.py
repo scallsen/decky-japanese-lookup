@@ -1,4 +1,4 @@
-"""VN Lookup — Decky plugin backend.
+"""Japanese Lookup — Decky plugin backend.
 
 Pipeline per trigger press: capture frame via gamescope's PipeWire source →
 OCR (local RapidOCR in a venv subprocess, or Gemini Vision) → rule-based
@@ -97,7 +97,7 @@ class Plugin:
         except Exception as e:
             logger.error(f"delivery server failed to start: {e}")
 
-        logger.info("VN Lookup backend up")
+        logger.info("Japanese Lookup backend up")
 
     async def _unload(self):
         monitor = getattr(self, "monitor", None)
@@ -207,12 +207,12 @@ class Plugin:
             else:
                 if not runtime_ok:
                     msg = ("Local OCR runtime not installed — install it in "
-                           "the VN Lookup settings panel")
+                           "the Japanese Lookup settings panel")
                     await self._emit("error", message=msg)
                     return {"ok": False, "error": msg}
                 if not self.downloader.is_installed():
                     msg = ("OCR models not downloaded — download them in the "
-                           "VN Lookup settings panel")
+                           "Japanese Lookup settings panel")
                     await self._emit("error", message=msg)
                     return {"ok": False, "error": msg}
                 local = RapidOCRBackend(self.installer.python,
@@ -470,7 +470,7 @@ class Plugin:
         QR-code scan. Does not clear the buffer — that's a separate,
         explicit action."""
         if not self.anki_buffer.count():
-            return {"ok": False, "error": "No buffered cards to export"}
+            return {"ok": False, "error": "No cards in Anki queue to export"}
         if not self.installer.is_anki_installed():
             return {"ok": False, "error": "Anki export runtime not installed",
                     "needs_install": True}
