@@ -27,6 +27,7 @@ on the Deck itself.
 - [First launch on the Deck](#first-launch-on-the-deck)
 - [Everyday use](#everyday-use)
 - [Updating](#updating)
+- [Freeing up space and uninstalling](#freeing-up-space-and-uninstalling)
 - [Troubleshooting](#troubleshooting)
 - [Optional: Yomitan in Firefox](#optional-yomitan-in-firefox)
 - [For contributors](#for-contributors)
@@ -309,6 +310,48 @@ pnpm install
 ```
 
 Your settings, downloaded dictionary, and Anki queue are kept.
+
+---
+
+## Freeing up space and uninstalling
+
+**To free up space but keep the plugin**, open **Advanced settings → Delete
+downloaded data**. This removes the OCR engine, OCR models, and dictionary
+(about 800 MB). Your settings, capture areas, and Anki queue are kept, and the
+download buttons from [First launch](#first-launch-on-the-deck) come back so
+you can reinstall them later.
+
+**To remove the plugin completely**, open Quick Access (**…**) → **Decky** tab
+→ gear icon → **Plugins**, open the menu next to Japanese Lookup, and choose
+**Uninstall**.
+About 20 seconds later, everything the plugin downloaded or saved is deleted
+too: the OCR engine, models, dictionary, settings, Anki queue, and logs.
+
+Export your Anki queue first if it still has cards you want to keep.
+
+Updating (installing a newer zip, or running `./deploy.sh` again) is not
+treated as uninstalling, so your data is kept.
+
+<details>
+<summary>Removing leftovers by hand</summary>
+
+If the plugin was uninstalled while it wasn't running, or with a version
+from before this cleanup existed, its data may still be there. To delete it,
+run this in Konsole on the Deck (or over SSH):
+
+```bash
+rm -rf ~/homebrew/data/vn-lookup ~/homebrew/settings/vn-lookup ~/homebrew/logs/vn-lookup ~/.vn-lookup-deploy
+```
+
+Older versions also left pip's download cache in `~/.cache/pip` (about 300 MB).
+Other apps can use that cache too; it's safe to delete, and anything that needs
+it will download again:
+
+```bash
+rm -rf ~/.cache/pip
+```
+
+</details>
 
 ---
 

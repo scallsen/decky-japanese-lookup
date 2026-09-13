@@ -74,6 +74,8 @@ export const getAllSettings = callable<[], Record<string, any>>("get_all_setting
 export const setSetting = callable<[key: string, value: any], { ok: boolean }>("set_setting");
 export const installRuntime = callable<[], { started: boolean }>("install_runtime");
 export const downloadModels = callable<[], { started: boolean }>("download_models");
+export const getDownloadedDataSize = callable<[], { bytes: number }>("get_downloaded_data_size");
+export const deleteDownloadedData = callable<[], { ok: boolean; freed_bytes?: number; error?: string }>("delete_downloaded_data");
 
 // visual region editor
 export const getEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("get_editor_frame");

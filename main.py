@@ -25,11 +25,18 @@ from vnlookup.hid_monitor import HidrawButtonMonitor
 from vnlookup.models import ModelDownloader
 from vnlookup.ocr import GeminiBackend, OCRError, RapidOCRBackend, tokenize
 from vnlookup.settings import Settings
+from vnlookup.uninstall import (
+    disk_usage,
+    downloaded_data_paths,
+    remove_paths,
+    spawn_uninstall_cleanup,
+)
 
 logger = decky.logger
 
 RUNTIME_DIR = decky.DECKY_PLUGIN_RUNTIME_DIR
 SETTINGS_DIR = decky.DECKY_PLUGIN_SETTINGS_DIR
+LOG_DIR = decky.DECKY_PLUGIN_LOG_DIR
 PLUGIN_DIR = decky.DECKY_PLUGIN_DIR
 CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
 PREVIEW_PNG = os.path.join(RUNTIME_DIR, "preview.png")
@@ -101,7 +108,23 @@ class Plugin:
             await anki_server.stop()
 
     async def _uninstall(self):
-        pass
+        # Decky also calls this when updating, and kills us 5s later — so
+        # don't delete here; a detached watcher deletes only if the plugin
+        # stays gone (see vnlookup/uninstall.py)
+        folder = os.path.basename(PLUGIN_DIR)
+        # every dir Decky gave this plugin is named after its folder; never
+        # hand the watcher anything else, even if an env var is off
+        paths = [p for p in (RUNTIME_DIR, SETTINGS_DIR, LOG_DIR)
+                 if p and os.path.isabs(p) and os.path.basename(p) == folder]
+        try:
+            spawn_uninstall_cleanup(
+                plugin_name=decky.DECKY_PLUGIN_NAME,
+                plugins_root=os.path.dirname(PLUGIN_DIR),
+                paths=paths,
+                log_path="/tmp/japanese-lookup-uninstall.log")
+            logger.info(f"uninstall: cleanup watcher started for {paths}")
+        except Exception as e:
+            logger.error(f"uninstall: couldn't start cleanup watcher: {e}")
 
     # ---- helpers -----------------------------------------------------------
 
@@ -481,6 +504,38 @@ class Plugin:
 
     async def download_models(self):
         return {"started": self.downloader.start_download()}
+
+    async def get_downloaded_data_size(self):
+        paths = downloaded_data_paths(RUNTIME_DIR)
+        return {"bytes": await asyncio.to_thread(disk_usage, paths)}
+
+    async def delete_downloaded_data(self):
+        """Advanced settings → Delete downloaded data: OCR/lookup/export
+        runtime, OCR models, dictionary, captures. Settings, capture areas
+        and the Anki queue are kept."""
+        if (self._busy
+                or self.installer.get_status()["installing"]
+                or self.downloader.get_status()["downloading"]
+                or self.dictionary.get_status()["importing"]):
+            return {"ok": False,
+                    "error": "Wait for the current download or capture to finish"}
+        self._busy = True
+        try:
+            await self.anki_server.stop()
+            paths = downloaded_data_paths(RUNTIME_DIR)
+            freed = await asyncio.to_thread(disk_usage, paths)
+            await asyncio.to_thread(remove_paths, paths)
+            # back to a first-launch state: empty dictionary db + captures dir
+            os.makedirs(CAPTURES_DIR, exist_ok=True)
+            self.dictionary = await asyncio.to_thread(
+                Dictionary,
+                os.path.join(RUNTIME_DIR, "dictionary.sqlite3"),
+                os.path.join(RUNTIME_DIR, "dicts"))
+            self._token_cache = {"text": None, "tokens": []}
+            logger.info(f"deleted downloaded data ({freed} bytes)")
+            return {"ok": True, "freed_bytes": freed}
+        finally:
+            self._busy = False
 
     # ---- settings ----------------------------------------------------------
 
