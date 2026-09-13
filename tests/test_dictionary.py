@@ -4,7 +4,13 @@ import time
 import zipfile
 
 import pytest
-from vnlookup.dictionary import Dictionary, _cap_glosses, _freq_value, flatten_glosses
+from vnlookup.dictionary import (
+    Dictionary,
+    _cap_glosses,
+    _freq_value,
+    _SCHEMA_VERSION,
+    flatten_glosses,
+)
 
 
 def make_dict_zip(path, title="TestDict"):
@@ -68,15 +74,26 @@ def _make_pre_word_type_db(db_path, dict_title):
 def test_migrates_pre_word_type_database_with_no_cached_zip(tmp_path):
     # no source zip to re-import from (e.g. it really was deleted) — must
     # still not crash; the column is added but the stale row is left as-is
-    # until the user re-imports themselves
+    # until the user re-imports themselves. Critically, the failed reimport
+    # must NOT mark the migration as done: user_version has to stay behind
+    # so a later launch (once a zip is available again) retries it, rather
+    # than treating "we tried and failed" the same as "it's handled".
     db_path = tmp_path / "dict.sqlite3"
     _make_pre_word_type_db(db_path, "Old")
     dicts_dir = tmp_path / "dicts"
     dicts_dir.mkdir()
     d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"]
+
     entries = d.lookup(["古い"])
     assert entries[0]["glosses"] == "old"
     assert entries[0]["word_type"] == ""
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+    conn.close()
 
 
 def test_migrates_pre_word_type_database_reimports_cached_zip(tmp_path):
@@ -103,6 +120,35 @@ def test_migrates_pre_word_type_database_reimports_cached_zip(tmp_path):
     entries = d.lookup(["食べる"])
     assert "to eat" in entries[0]["glosses"]
     assert "• to live on" in entries[0]["glosses"]
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == _SCHEMA_VERSION
+    conn.close()
+
+
+def test_reimports_even_when_word_type_column_already_added(tmp_path):
+    # regression: an earlier version of this migration added the
+    # word_type column without reimporting anything into it. A
+    # database that already has the (empty) column from that half-done
+    # migration must still trigger the reimport — the column's mere
+    # presence is not a reliable "already migrated" signal.
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "TestDict")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
+    conn.commit()
+    conn.close()
+
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    make_dict_zip(dicts_dir / "test.zip")
+
+    d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"] is None
+    entries = d.lookup(["食べる"])
+    assert entries  # reimport actually happened, not skipped
 
 
 def test_lookup_by_expression_with_meta(dic):

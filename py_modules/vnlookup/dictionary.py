@@ -31,6 +31,20 @@ JITENDEX_URL = ("https://github.com/stephenmk/stephenmk.github.io/releases/"
 
 _BLOCK_TAGS = {"div", "li", "ul", "ol", "br", "tr", "details", "summary"}
 
+# Bump whenever an already-imported database needs reprocessing to pick up
+# a data-shape change (not a schema change alone — see Dictionary.__init__,
+# which uses PRAGMA user_version, not column presence, to gate this).
+#
+# 2, not 1: a since-fixed bug in an earlier release of this same migration
+# wrote user_version = 1 *before* its reimport ran rather than after, and
+# that reimport got killed mid-transaction by an unrelated plugin reload —
+# so any device that hit that exact race is permanently stuck reading
+# "already migrated" at version 1 despite word_type never having actually
+# been populated. Only a higher target version reaches those devices;
+# fixing __init__'s ordering going forward doesn't rewrite a version
+# number an already-shipped build already wrote.
+_SCHEMA_VERSION = 2
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS dictionaries (
     id INTEGER PRIMARY KEY,
@@ -192,6 +206,15 @@ class Dictionary:
         self._lock = threading.Lock()
         self._cached_dicts = []
         self._cached_terms = 0
+        # set only once a migration-triggered reimport below actually
+        # *finishes* (see _import_all) — never eagerly here. On-device this
+        # raced a plugin reload: the reimport got killed mid-transaction
+        # (SQLite rolled back its uncommitted DELETE, silently undoing it),
+        # but an earlier version of this code had already written the
+        # version bump before that happened, so the next launch saw
+        # "already migrated" and never retried, leaving word_type empty
+        # forever. Only a *completed* reimport may advance this now.
+        self._pending_schema_version: int | None = None
         os.makedirs(dicts_dir, exist_ok=True)
         needs_reimport = False
         with self._connect() as db:
@@ -206,7 +229,21 @@ class Dictionary:
             cols = {row[1] for row in db.execute("PRAGMA table_info(terms)")}
             if "word_type" not in cols:
                 db.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
-                needs_reimport = True
+            # PRAGMA user_version (bumped only on completion, see above),
+            # not column presence, gates the one-time reimport below —
+            # column presence alone already bit this once: an earlier
+            # version of this migration added the column without
+            # reimporting, so by the time the reimport step was added, the
+            # column already existed on-device and a (column-missing
+            # triggered) reimport silently never ran.
+            if db.execute("PRAGMA user_version").fetchone()[0] < _SCHEMA_VERSION:
+                # only if there's actually existing data to reprocess — a
+                # brand-new database has nothing to migrate, and forcing a
+                # reimport here would just race whoever creates it and
+                # calls start_import() themselves right after
+                has_data = db.execute(
+                    "SELECT EXISTS(SELECT 1 FROM dictionaries)").fetchone()[0]
+                needs_reimport = bool(has_data)
         if needs_reimport:
             # ADD COLUMN alone only reaches new rows going forward — every
             # already-imported row still has its old, unsplit glosses text
@@ -216,6 +253,7 @@ class Dictionary:
             # network needed, and it reprocesses existing dictionaries
             # with the fixed splitting logic instead of leaving stale data
             # around until someone happens to hit "Download dictionary".
+            self._pending_schema_version = _SCHEMA_VERSION
             self.start_import()
 
     def _connect(self):
@@ -284,6 +322,10 @@ class Dictionary:
                 self._import_zip(path, base=i / len(zips),
                                  span=1 / len(zips))
             self._set(step="done", progress=1.0)
+            if self._pending_schema_version is not None:
+                with self._connect() as db:
+                    db.execute(f"PRAGMA user_version = {self._pending_schema_version}")
+                self._pending_schema_version = None
         except Exception as e:
             logger.error(f"dictionary import failed: {e}")
             with self._lock:
