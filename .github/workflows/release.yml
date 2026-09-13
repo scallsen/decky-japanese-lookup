@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # pnpm 11 needs node >= 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Same layout deploy.sh rsyncs to the Deck, so a zip built here installs
+      # identically via Decky's "Install from zip" — no build tools needed.
+      - name: Package plugin
+        run: |
+          set -euo pipefail
+          PLUGIN_DIR_NAME="vn-lookup"
+          STAGE="$(mktemp -d)/$PLUGIN_DIR_NAME"
+          mkdir -p "$STAGE"
+          cp -R dist main.py plugin.json package.json py_modules README.md LICENSE "$STAGE/"
+          [[ -d defaults ]] && cp -R defaults/. "$STAGE/"
+
+          mkdir -p out
+          ZIP_NAME="${PLUGIN_DIR_NAME}-${GITHUB_REF_NAME}.zip"
+          (cd "$(dirname "$STAGE")" && zip -r "$GITHUB_WORKSPACE/out/$ZIP_NAME" "$PLUGIN_DIR_NAME")
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_ENV"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          generate_release_notes: true
