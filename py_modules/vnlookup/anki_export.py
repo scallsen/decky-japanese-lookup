@@ -27,7 +27,10 @@ EXPORT_TIMEOUT = 60
 # note type, however the user may have since customized it), and only
 # newly-exported cards land on the new one. Bump this — any change is
 # fine — every time the default template/CSS changes.
-TEMPLATE_VERSION = 3
+#
+# 4: reading is now enabled by default and shares the large .r-expression
+# style (both the field set and the CSS changed).
+TEMPLATE_VERSION = 4
 
 
 class AnkiExportError(Exception):

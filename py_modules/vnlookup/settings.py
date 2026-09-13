@@ -38,7 +38,7 @@ DEFAULTS: dict[str, Any] = {
     "anki_deck": "Steam Deck Vocabulary",
     "anki_note_type": "VN Lookup",
     "anki_expression_field": "Front",
-    "anki_reading_field": "",
+    "anki_reading_field": "Reading",
     "anki_glossary_field": "Back",
     "anki_sentence_field": "Sentence",
     # the dictionary's part-of-speech tags for the looked-up word (e.g.

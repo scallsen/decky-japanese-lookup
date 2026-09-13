@@ -66,6 +66,12 @@ class Plugin:
             # actually matters — see TEMPLATE_VERSION in anki_export.py)
             # with Anki's own stock "Basic" note type in the UI.
             self.settings.set("anki_note_type", "VN Lookup")
+        if self.settings.get("anki_reading_field") == "":
+            # same situation: no UI ever let this be deliberately set to
+            # blank since the field-name TextFields were dropped, so any
+            # stored blank is just the old default (reading was originally
+            # opt-in/skipped) rather than a deliberate choice
+            self.settings.set("anki_reading_field", "Reading")
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(

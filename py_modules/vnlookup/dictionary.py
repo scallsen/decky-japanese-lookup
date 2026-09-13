@@ -189,12 +189,11 @@ def _cap_glosses(text: str, max_senses: int = _MAX_GLOSS_SENSES) -> str:
     verb") are extracted separately at flatten time (flatten_content's
     pos_out) rather than left inline in this text, so unlike an earlier
     version of this function there's no ambiguity here to resolve: every
-    line reaching this point already is a real gloss.
+    line reaching this point already is a real gloss. Silently drops
+    anything past the cap — no "…" marker on the card.
     """
     lines = text.splitlines()
-    if len(lines) <= max_senses:
-        return text
-    return "\n".join([*lines[:max_senses], "…"])
+    return "\n".join(lines[:max_senses])
 
 
 def _freq_value(data):

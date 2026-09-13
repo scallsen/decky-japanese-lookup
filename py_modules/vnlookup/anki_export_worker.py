@@ -16,11 +16,10 @@ Prints JSON: {"error", "path", "count"} as the last (only) stdout line.
 import json
 import sys
 
-# Back-of-card order: glossary, word_type, sentence, game — reading sits
-# right after expression (it's default-unconfigured, see settings.py, but
-# if enabled it belongs right under the word it's the reading of, not
-# mixed in with the rest). "game" stays last: reference info, not part of
-# what you're being quizzed on.
+# Back-of-card order: reading first (right under the word it's the
+# reading of, same visual weight as the word itself), then glossary,
+# word_type, sentence, game. "game" stays last: reference info, not part
+# of what you're being quizzed on.
 ROLE_ORDER = ["expression", "reading", "glossary", "word_type", "sentence", "game"]
 # buffered-card dict key for each role (glossary role holds the "glosses" key)
 CARD_KEY = {"expression": "expression", "reading": "reading",
@@ -29,10 +28,11 @@ CARD_KEY = {"expression": "expression", "reading": "reading",
 
 # Each field is wrapped in a role-tagged block so the CSS below can give
 # each role genuinely different visual weight, rather than one uniform
-# font-size for the whole card. Design intent: glossary + sentence are what
-# you're actually testing yourself on — the main content, medium-large.
-# expression is the big prompt on both sides (repeated via {{FrontSide}} on
-# the back). reading and word_type are small secondary detail; game is the
+# font-size for the whole card. Design intent: expression (front, and
+# repeated via {{FrontSide}} on the back) and reading are the two things
+# that make up "the word" and share the same large size/weight. glossary +
+# sentence are what you're actually testing yourself on — the main
+# content, medium-large. word_type is small secondary detail; game is the
 # smallest, purely-reference info.
 _CSS = """
 .card {
@@ -42,15 +42,18 @@ _CSS = """
  background-color: white;
  line-height: 1.5;
 }
-.r-expression {
+.r-expression, .r-reading {
  font-size: 34px;
  font-weight: 600;
+}
+.r-reading {
+ margin-top: 4px;
 }
 .r-glossary, .r-sentence {
  font-size: 22px;
  margin-top: 12px;
 }
-.r-reading, .r-word_type {
+.r-word_type {
  font-size: 16px;
  color: #666;
  margin-top: 4px;

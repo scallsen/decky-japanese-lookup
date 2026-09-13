@@ -329,7 +329,7 @@ def test_cap_glosses_under_limit_is_unchanged():
 def test_cap_glosses_truncates():
     text = "\n".join(f"• sense {i}" for i in range(6))
     out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2", "…"]
+    assert out.splitlines() == ["• sense 0", "• sense 1", "• sense 2"]
 
 
 def test_cap_glosses_handles_bare_lines_too():
@@ -337,7 +337,7 @@ def test_cap_glosses_handles_bare_lines_too():
     # non-bulleted lines (one per simple-gloss row)
     text = "\n".join(f"gloss {i}" for i in range(5))
     out = _cap_glosses(text, max_senses=3)
-    assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2", "…"]
+    assert out.splitlines() == ["gloss 0", "gloss 1", "gloss 2"]
 
 
 def test_lookup_caps_many_senses(tmp_path):
@@ -360,8 +360,7 @@ def test_lookup_caps_many_senses(tmp_path):
         time.sleep(0.02)
     entries = d.lookup(["多義語"])
     lines = entries[0]["glosses"].splitlines()
-    assert len(lines) == 4  # 3 senses + the truncation marker
-    assert lines[-1] == "…"
+    assert len(lines) == 3
     assert entries[0]["word_type"] == ""
 
 
