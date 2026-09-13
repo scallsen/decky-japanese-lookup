@@ -23,7 +23,6 @@ export const QrCode: FC<{ value: string; size?: number }> = ({ value, size = 200
         borderRadius: 4,
         boxSizing: "border-box",
       }}
-      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

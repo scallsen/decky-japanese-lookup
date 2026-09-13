@@ -79,20 +79,15 @@ export const LookupSection: FC<{
     try {
       const s = await getLookupStatus();
       if (alive.current) setStatus(s);
-      return s;
     } catch {
-      return null;
+      /* backend still starting */
     }
   };
 
   useEffect(() => {
     alive.current = true;
     void refresh();
-    const t = setInterval(async () => {
-      const s = await refresh();
-      // keep polling snappy only while something is installing/importing
-      if (!s?.runtime.installing && !s?.dictionary.importing) return;
-    }, 2000);
+    const t = setInterval(refresh, 2000);
     return () => {
       alive.current = false;
       clearInterval(t);

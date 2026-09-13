@@ -285,6 +285,7 @@ export const Panel: FC = () => {
   const runtime = status?.runtime;
   const models = status?.models;
   const setupDone = !!runtime?.installed && !!models?.installed;
+  const buffered = status?.anki_buffered ?? 0;
 
   return (
     <>
@@ -349,11 +350,9 @@ export const Panel: FC = () => {
             key={i}
             style={{
               borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              // the previous area's "Delete" button (shown once i > 1) carries
-              // its own bottom padding, so it needs no extra margin on top of
-              // that to match the gap above the first divider (after i === 1,
-              // which follows a plain row with no built-in padding)
-              marginTop: i > 1 ? 0 : i === 1 ? 12 : 0,
+              // areas after the second follow a padded "Delete" button, so
+              // only the first divider needs its own margin
+              marginTop: i === 1 ? 12 : 0,
               paddingTop: i > 0 ? 12 : 0,
             }}
           >
@@ -401,12 +400,8 @@ export const Panel: FC = () => {
         <div
           style={{
             borderTop: "1px solid rgba(255,255,255,0.1)",
-            // matches the area-to-area divider spacing: no extra margin
-            // above when the last area's own "Delete" button (which has its
-            // own bottom padding) precedes it, otherwise the full margin.
-            // No paddingTop below the line either — "Add capture area" is a
-            // ButtonItem, which (like Delete) already carries its own top
-            // padding.
+            // same rule as the dividers above: no margin after a padded
+            // "Delete" button
             marginTop: areas.length > 1 ? 0 : 12,
           }}
         >
@@ -443,14 +438,12 @@ export const Panel: FC = () => {
               <div style={{ marginTop: 12, marginBottom: 4 }}>
                 <GameBox
                   appid={null}
-                  displayName={`${status?.anki_buffered ?? 0} card${
-                    (status?.anki_buffered ?? 0) === 1 ? "" : "s"
-                  } in Anki queue`}
+                  displayName={`${buffered} card${buffered === 1 ? "" : "s"} in Anki queue`}
                   fallbackIcon={<FaClone size={18} style={{ opacity: 0.5 }} />}
                   action={
                     <DialogButton
                       style={{ width: "fit-content", minWidth: 0, padding: "8px 10px" }}
-                      disabled={(status?.anki_buffered ?? 0) === 0}
+                      disabled={buffered === 0}
                       onClick={() => showModal(<AnkiBufferModal settings={settings} />)}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -465,27 +458,21 @@ export const Panel: FC = () => {
               <ButtonItem
                 layout="below"
                 bottomSeparator="none"
-                disabled={
-                  (status?.anki_buffered ?? 0) === 0 ||
-                  !!status?.runtime?.installing ||
-                  exporting
-                }
+                disabled={buffered === 0 || !!runtime?.installing || exporting}
                 onClick={handleExport}
               >
-                {!status?.runtime?.anki_installed
-                  ? status?.runtime?.installing
-                    ? `Installing… (${status.runtime.step})`
+                {!runtime?.anki_installed
+                  ? runtime?.installing
+                    ? `Installing… (${runtime.step})`
                     : "Install Anki export runtime (~5 MB)"
                   : exporting
                   ? "Exporting…"
                   : "Export via QR code"}
               </ButtonItem>
             </PanelSectionRow>
-            {status?.runtime?.error ? (
+            {runtime?.error ? (
               <PanelSectionRow>
-                <div style={{ fontSize: 11, color: "#e74c3c" }}>
-                  {status.runtime.error}
-                </div>
+                <div style={{ fontSize: 11, color: "#e74c3c" }}>{runtime.error}</div>
               </PanelSectionRow>
             ) : null}
 
@@ -513,11 +500,11 @@ export const Panel: FC = () => {
             ) : null}
 
             <PanelSectionRow>
-              <div style={{ marginTop: status?.runtime?.error || qrUrl ? 0 : -8 }}>
+              <div style={{ marginTop: runtime?.error || qrUrl ? 0 : -8 }}>
                 <ButtonItem
                   layout="below"
                   bottomSeparator="none"
-                  disabled={(status?.anki_buffered ?? 0) === 0}
+                  disabled={buffered === 0}
                   onClick={async () => {
                     await clearAnkiBuffer();
                     setQrUrl(null);

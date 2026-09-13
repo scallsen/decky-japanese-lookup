@@ -31,14 +31,18 @@ class CaptureError(Exception):
     """Capture failed in a way the user should see."""
 
 
+class PngencMissing(CaptureError):
+    """System GStreamer has no pngenc; use capture_raw_rgb() instead."""
+
+
 class ScreenCapture:
     def __init__(self, gst_plugin_path: str = "", lib_path: str = ""):
         # Optional dirs with bundled gstreamer plugins/libs; ignored if absent.
         self._gst_plugin_path = gst_plugin_path if os.path.isdir(gst_plugin_path) else ""
         self._lib_path = lib_path if os.path.isdir(lib_path) else ""
-        self._session_env = None
-        self._has_pngenc = None
-        self._source_dims = None
+        self._session_env: dict[str, str] | None = None
+        self._has_pngenc: bool | None = None
+        self._source_dims: tuple[int, int] | None = None
 
     # -- environment -----------------------------------------------------
 
@@ -54,7 +58,7 @@ class ScreenCapture:
                         continue
                 with open(os.path.join(proc_path, 'environ'), 'rb') as f:
                     data = f.read()
-            except (OSError, PermissionError):
+            except OSError:
                 continue
             result = {}
             for entry in data.split(b'\0'):
@@ -148,7 +152,7 @@ class ScreenCapture:
             await self.probe()
 
         if not self._has_pngenc:
-            raise CaptureError(
+            raise PngencMissing(
                 "GStreamer pngenc not available — raw capture fallback "
                 "requires the OCR runtime (install it in plugin settings)")
 
@@ -157,11 +161,8 @@ class ScreenCapture:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             if attempt > 1:
                 await asyncio.sleep(0.3)
-            if os.path.exists(screenshot_path):
-                try:
-                    os.remove(screenshot_path)
-                except OSError:
-                    pass
+            with contextlib.suppress(OSError):
+                os.remove(screenshot_path)
 
             proc = await asyncio.create_subprocess_exec(
                 'gst-launch-1.0', '-e',

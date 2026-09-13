@@ -29,7 +29,7 @@ const ROLE_CARD_KEY: Record<Role, keyof BufferedCard> = {
   game: "game",
 };
 
-// mirrors the role -> settings-key map built in main.py's export_anki_buffer
+// mirrors ANKI_FIELD_SETTINGS in main.py
 const ROLE_SETTING_KEY: Record<Role, string> = {
   expression: "anki_expression_field",
   reading: "anki_reading_field",
@@ -39,8 +39,8 @@ const ROLE_SETTING_KEY: Record<Role, string> = {
   game: "anki_game_field",
 };
 
-// a blank field-name setting means that role is skipped on export — same
-// check as main.py's `name = (s.get(key) or "").strip(); if name: ...`
+// a blank field-name setting means that role is skipped on export, same as
+// main.py's export_anki_buffer
 const activeRoles = (settings: Record<string, any>): Role[] =>
   ROLE_ORDER.filter((r) => !!(settings[ROLE_SETTING_KEY[r]] || "").toString().trim());
 

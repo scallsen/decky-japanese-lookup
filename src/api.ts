@@ -9,7 +9,6 @@ export interface VnlEvent {
   warning?: string | null;
   clients?: number;
   copy_to_clipboard?: boolean;
-  auto_open_qam?: boolean;
   region?: Region | null;
 }
 
@@ -65,7 +64,7 @@ export interface Region { x: number; y: number; w: number; h: number }
 // Capture-area profile key for whatever's running when Steam can't report
 // an appid (used both when no game is running and, in practice, never
 // reached from a real capture — captures only fire while Router.MainRunningApp
-// is set). Mirrors Plugin.UNKNOWN_PROFILE_KEY in main.py.
+// is set). Mirrors UNKNOWN_PROFILE_KEY in main.py.
 export const UNKNOWN_APP_KEY = "unknown";
 
 export const captureAndMine = callable<[button?: string, appid?: string], { ok: boolean; error?: string }>("capture_and_mine");
@@ -75,7 +74,6 @@ export const getAllSettings = callable<[], Record<string, any>>("get_all_setting
 export const setSetting = callable<[key: string, value: any], { ok: boolean }>("set_setting");
 export const installRuntime = callable<[], { started: boolean }>("install_runtime");
 export const downloadModels = callable<[], { started: boolean }>("download_models");
-export const testLine = callable<[], { ok: boolean; clients: number }>("test_line");
 
 // visual region editor
 export const getEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("get_editor_frame");
@@ -85,7 +83,6 @@ export const detectRegion = callable<[], { ok: boolean; region?: Region; image?:
 // native lookup
 export const tokenizeLine = callable<[text: string], { ok: boolean; tokens?: Token[]; error?: string }>("tokenize_line");
 export const lookupWord = callable<[queries: string[]], { ok: boolean; entries: DictEntry[] }>("lookup_word");
-export const lookupSelection = callable<[text: string], { ok: boolean; entries: DictEntry[] }>("lookup_selection");
 export const getLookupStatus = callable<[], LookupStatus>("get_lookup_status");
 export const installLookupRuntime = callable<[], { started: boolean }>("install_lookup_runtime");
 export const importDictionaries = callable<[downloadJitendex: boolean], { started: boolean }>("import_dictionaries");

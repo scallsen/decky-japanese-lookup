@@ -1,5 +1,6 @@
 """Plugin settings, persisted as JSON in Decky's settings dir."""
 
+import copy
 import json
 import os
 from typing import Any
@@ -7,17 +8,18 @@ from typing import Any
 DEFAULTS: dict[str, Any] = {
     # List of {"region": {x,y,w,h}, "button": "L4"|"R4"|"L5"|"R5"|None}.
     # Each area is a screen region (fraction of screen size) plus the back
-    # button that triggers a capture of it; index 0 is the non-deletable
-    # "Default" area. None here = not yet migrated from the legacy
-    # region/region_alt/button_map/trigger_button settings — see
-    # Plugin._main's one-time migration.
-    "capture_areas": None,
+    # button that triggers a capture of it. The default covers the usual
+    # bottom-third VN text box.
+    "capture_areas": [
+        {"region": {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36}, "button": "L5"},
+    ],
     # Per-game overrides, keyed by Steam appid (string):
     # {"<appid>": {"display_name": str, "areas": [<capture_areas entry>, ...]}}.
     # A game with no entry here uses capture_areas ("Default") until the
     # user edits its areas, which creates an entry automatically.
     "capture_profiles": {},
-    # "rapidocr" (local, default) | "gemini" (cloud, needs api key)
+    # "rapidocr" (local, default) | "gemini" (cloud, needs api key). No UI
+    # for the Gemini options at the moment.
     "ocr_backend": "rapidocr",
     "gemini_api_key": "",
     "gemini_model": "gemini-2.5-flash",
@@ -26,15 +28,15 @@ DEFAULTS: dict[str, Any] = {
     # gamescope (SteamOS >= 3.7.14) syncs it to Firefox/Yomitan
     "texthooker_port": 8766,
     "copy_to_clipboard": True,
-    # keep last N capture screenshots for Anki cards
+    # how many past captures to keep on disk (the region editor reuses the
+    # newest one as its background frame)
     "screenshot_history": 20,
     # master switch — off by default; Anki is an opt-in feature
     "anki_enabled": False,
     # cards are buffered locally and exported as a batch .apkg (scanned via
-    # QR code) rather than pushed to AnkiConnect live. Field names map onto
-    # the plugin-owned note type embedded in the .apkg; empty field names
-    # are skipped. Only anki_deck is user-facing (Panel.tsx); the rest are
-    # fixed — no note-type/field-mapping UI, just a plugin-owned note type.
+    # QR code). Field names map onto the plugin-owned note type embedded in
+    # the .apkg; empty field names are skipped. Only anki_deck has UI
+    # (Panel.tsx); the rest are fixed.
     "anki_deck": "Steam Deck Vocabulary",
     "anki_note_type": "VN Lookup",
     "anki_expression_field": "Front",
@@ -53,38 +55,41 @@ DEFAULTS: dict[str, Any] = {
 # so they don't linger forever in get_all_settings()'s output
 _DEPRECATED_KEYS = (
     "ankiconnect_url", "anki_auto_enrich", "anki_picture_field", "anki_image",
+    "auto_open_qam", "button_map", "capture_mode", "region", "region_alt",
+    "strip_speaker_name", "trigger_button", "trigger_hold_ms",
 )
+
+
+def write_json_atomic(path: str, data: Any) -> None:
+    """Write JSON via a temp file + rename, so a crash never truncates it."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 class Settings:
     def __init__(self, settings_dir: str):
         self.path = os.path.join(settings_dir, "vn-lookup.json")
-        self._data: dict[str, Any] = dict(DEFAULTS)
+        self._data: dict[str, Any] = copy.deepcopy(DEFAULTS)
         self.load()
 
     def load(self) -> None:
         try:
             with open(self.path, encoding="utf-8") as f:
                 stored = json.load(f)
-            # merge so new defaults appear after plugin updates; dict-valued
-            # settings (region) merge per-key so a stale/partial stored dict
-            # can't drop required keys
-            merged = {**DEFAULTS, **stored}
-            for key, default in DEFAULTS.items():
-                if isinstance(default, dict) and isinstance(merged.get(key), dict):
-                    merged[key] = {**default, **merged[key]}
-            for key in _DEPRECATED_KEYS:
-                merged.pop(key, None)
-            self._data = merged
         except (FileNotFoundError, json.JSONDecodeError):
-            self._data = dict(DEFAULTS)
+            self._data = copy.deepcopy(DEFAULTS)
+            return
+        # merge so new defaults appear after plugin updates
+        merged = {**copy.deepcopy(DEFAULTS), **stored}
+        for key in _DEPRECATED_KEYS:
+            merged.pop(key, None)
+        self._data = merged
 
     def save(self) -> None:
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.path)
+        write_json_atomic(self.path, self._data)
 
     def get(self, key: str) -> Any:
         return self._data.get(key, DEFAULTS.get(key))

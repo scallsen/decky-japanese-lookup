@@ -24,12 +24,14 @@ _JP_CHAR = (
 
 _KANA = r"぀-ゟ゠-ヿ"
 
-
-def _nfkc_preserving_choonpu(text: str) -> str:
-    # NFKC folds full-width ASCII and half-width kana into canonical forms,
-    # which is what dictionaries expect, but it must not touch 「」…― etc.
-    # NFKC keeps those; it's safe as a whole-string pass.
-    return unicodedata.normalize("NFKC", text)
+_JP_CHAR_RE = re.compile(r"[" + _JP_CHAR + r"]")
+# Spaces between two Japanese characters are OCR noise. Spaces adjacent to
+# Latin runs (e.g. a title drop) are kept.
+_INTERWORD_SPACE_RE = re.compile(
+    r"(?<=[" + _JP_CHAR + r"])[ \t　]+(?=[" + _JP_CHAR + r"])")
+# A dash between kana is virtually always ー (e.g. デ一タ → データ).
+_CHOONPU_RE = re.compile(
+    r"(?<=[" + _KANA + r"])[" + _CHOONPU_LOOKALIKES + r"](?=[" + _KANA + r"])")
 
 
 def strip_speaker_name(text: str) -> str:
@@ -53,30 +55,6 @@ def _join_lines(text: str) -> str:
     return "".join(ln for ln in lines if ln)
 
 
-def _drop_interword_spaces(text: str) -> str:
-    # Spaces between two Japanese characters are OCR noise. Spaces adjacent
-    # to Latin runs (e.g. a title drop) are kept.
-    pattern = re.compile(r"(?<=[" + _JP_CHAR + r"])[ \t　]+(?=[" + _JP_CHAR + r"])")
-    prev = None
-    while prev != text:
-        prev = text
-        text = pattern.sub("", text)
-    return text
-
-
-def _fix_choonpu(text: str) -> str:
-    # A dash between kana is virtually always ー (e.g. デ一タ → データ).
-    return re.sub(
-        r"(?<=[" + _KANA + r"])[" + _CHOONPU_LOOKALIKES + r"](?=[" + _KANA + r"])",
-        "ー",
-        text,
-    )
-
-
-_MISREAD_TABLE = str.maketrans({
-    "ロ": "ロ",  # identity; placeholder so the table is easy to extend
-})
-
 # Ellipsis variants OCR produces for VN 「……」 — normalize to standard …
 _ELLIPSIS_RE = re.compile(r"(?:\.\s*){3,}|・{3,}|,{3,}")
 
@@ -85,14 +63,14 @@ def clean_ocr_text(raw: str, *, remove_speaker: bool = True) -> str:
     """Full cleanup pipeline. Returns "" if nothing survives."""
     if not raw:
         return ""
-    text = raw
-    text = _join_lines(text)
-    text = _nfkc_preserving_choonpu(text)
+    text = _join_lines(raw)
+    # NFKC folds full-width ASCII and half-width kana into the canonical
+    # forms dictionaries expect, and leaves 「」…― alone
+    text = unicodedata.normalize("NFKC", text)
     text = _ELLIPSIS_RE.sub("…", text)
-    text = _drop_interword_spaces(text)
+    text = _INTERWORD_SPACE_RE.sub("", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
-    text = _fix_choonpu(text)
-    text = text.translate(_MISREAD_TABLE)
+    text = _CHOONPU_RE.sub("ー", text)
     if remove_speaker:
         text = strip_speaker_name(text)
     return text.strip()
@@ -202,5 +180,5 @@ def looks_like_japanese(text: str, threshold: float = 0.3) -> bool:
     """Heuristic used to flag 'OCR returned something, but probably garbage'."""
     if not text:
         return False
-    jp = sum(1 for ch in text if re.match(r"[" + _JP_CHAR + r"]", ch))
+    jp = sum(1 for ch in text if _JP_CHAR_RE.match(ch))
     return jp / len(text) >= threshold

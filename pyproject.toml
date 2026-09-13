@@ -5,21 +5,29 @@ extend-exclude = ["refs", "node_modules", "dist", "decky.pyi"]
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "W",   # pycodestyle warnings
-    "B",   # bugbear
-    "UP",  # pyupgrade
-    "SIM", # simplify
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "B",     # bugbear
+    "UP",    # pyupgrade
+    "SIM",   # simplify
+    "I",     # import sorting
+    "C4",    # comprehensions
+    "PIE",   # misc lints
+    "RUF",   # ruff-specific
+    "ASYNC", # blocking calls inside async functions
 ]
 ignore = [
-    "E501",   # long lines in prompts/URLs are fine
-    "SIM105", # try/except/pass is clearer than contextlib.suppress sometimes
+    "E501",     # long lines in prompts/URLs are fine
+    "SIM105",   # try/except/pass is clearer than contextlib.suppress sometimes
+    "RUF001",   # Japanese text legitimately uses "ambiguous" full-width characters
+    "RUF012",   # class-level constant tables (hid_monitor button masks)
+    "ASYNC109", # worker timeouts are plain parameters by design
+    "ASYNC240", # os.path checks on local files are effectively instant
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# decky import only exists on the Deck
-"main.py" = ["F401"]
+[tool.ruff.lint.isort]
+known-first-party = ["vnlookup", "decky"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

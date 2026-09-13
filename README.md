@@ -1,4 +1,4 @@
-# VN Lookup — Steam Deck VN sentence mining, without leaving gaming mode
+# Japanese Lookup — Steam Deck VN sentence mining, without leaving gaming mode
 
 > ⚠️ **Work in progress.** This is a personal project, not a polished release —
 > setup is manual, some flows are rough, and things may break or change
@@ -125,34 +125,46 @@ $EDITOR .vscode/settings.json              # set deckip/deckpass/key path
 No Docker, no zip step. Backend logs land in
 `/home/deck/homebrew/logs/vn-lookup/`.
 
+### Checks
+
+The same checks CI runs:
+
+```bash
+pnpm lint && pnpm typecheck && pnpm build   # frontend: ESLint, tsc, rollup
+pip install ruff pytest
+ruff check . && pytest -q                   # backend: lint + unit tests
+```
+
 ### First run, on the Deck (gaming mode)
 
-Open the Quick Access menu (…) → VN Lookup:
+Open the Quick Access menu (…) → Japanese Lookup:
 
 1. **Install OCR runtime** (creates a venv in
    `~/homebrew/data/vn-lookup/venv` with RapidOCR + ONNX Runtime).
 2. **Download OCR models** (PP-OCRv5, handles Japanese natively).
-3. Check the Status section: Controller *hooked*, PipeWire *ok*.
-4. Press **Capture now (test)** with a game running.
+3. Under **Advanced settings → Show debug info**, check Controller *hooked*
+   and PipeWire *ok*.
+4. With a game running, hold the capture button (**L5** by default) over a
+   text box.
 
 ---
 
 ## Using it
 
 **Built-in dictionary (no Firefox needed):** hold the capture button (**L5**
-by default) over a text box → the line appears in the VN Lookup panel split
-into tappable word chips → tap a chip for a definition → **➕ Anki** buffers
+by default) over a text box → the line appears in the Japanese Lookup panel split
+into tappable word chips → tap a chip for a definition → **+ Anki** queues
 the card locally (nothing is sent anywhere yet). First time, run **Install
 lookup runtime** and **Download dictionary** from the Lookup section of the
 panel.
 
 When you're ready to bring cards over to your phone, open the panel's
-**Anki** section and tap **Export via QR** (first tap installs the small
-export runtime, ~5 MB) — it packages everything buffered into one `.apkg`,
+**Anki** section and tap **Export via QR code** (first tap installs the small
+export runtime, ~5 MB) — it packages everything queued into one `.apkg`,
 serves it briefly over your LAN, and shows a QR code. Scan it, tap "Open in
-Anki" on your phone, and the cards import. The buffer isn't cleared
+Anki" on your phone, and the cards import. The queue isn't cleared
 automatically, so you can keep adding to it across sessions — use **Clear
-buffer** once you've confirmed the import.
+Anki queue** once you've confirmed the import.
 
 **Yomitan fallback:** hold the capture button, switch to Firefox — the line
 is on the texthooker page and Yomitan's search may already be open — hover
@@ -168,8 +180,8 @@ above), independently of the plugin's own buffer/export flow.
 - Yomitan's Firefox background page can be idle-killed after ~30s, silently
   stopping its clipboard monitor — the texthooker page doesn't have this
   problem, so prefer it if clipboard delivery seems flaky.
-- Capture region and hold time may need tuning per game (sliders +
-  "Capture now" in the panel).
+- Capture areas may need tuning per game (**Change area** in the panel;
+  edits are saved per game).
 - Exported cards carry the sentence and dictionary fields only — no game
   screenshot. Dropping AnkiConnect meant dropping the live enrichment step
   that used to attach it; may come back to the export flow later.

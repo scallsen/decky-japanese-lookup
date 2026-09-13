@@ -36,6 +36,8 @@ Thumbs.db
 dist/
 
 __pycache__/
+.pytest_cache/
+.ruff_cache/
 
 /.yalc
 yalc.lock

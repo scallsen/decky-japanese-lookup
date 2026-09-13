@@ -13,12 +13,11 @@ import os
 import time
 
 import decky
-
 from vnlookup import cleanup
 from vnlookup.anki_export import AnkiExportError, build_apkg
 from vnlookup.anki_server import AnkiExportServer
 from vnlookup.buffer import PendingCards
-from vnlookup.capture import CaptureError, ScreenCapture
+from vnlookup.capture import CaptureError, PngencMissing, ScreenCapture
 from vnlookup.deliver import DeliveryServer
 from vnlookup.deps import RuntimeInstaller
 from vnlookup.dictionary import Dictionary
@@ -33,45 +32,35 @@ RUNTIME_DIR = decky.DECKY_PLUGIN_RUNTIME_DIR
 SETTINGS_DIR = decky.DECKY_PLUGIN_SETTINGS_DIR
 PLUGIN_DIR = decky.DECKY_PLUGIN_DIR
 CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
+PREVIEW_PNG = os.path.join(RUNTIME_DIR, "preview.png")
 
-# fallback shapes used only by the one-time capture_areas migration below
-# and as the starting point for newly-added areas
-_LEGACY_REGION = {"x": 0.03, "y": 0.62, "w": 0.94, "h": 0.36}
-_LEGACY_REGION_ALT = {"x": 0.1, "y": 0.08, "w": 0.8, "h": 0.84}
+# bucket for captures with no Steam appid to key by — matches
+# UNKNOWN_APP_KEY in src/api.ts
+UNKNOWN_PROFILE_KEY = "unknown"
+
+# role -> settings key naming the note-type field it's written to
+ANKI_FIELD_SETTINGS = (
+    ("expression", "anki_expression_field"),
+    ("reading", "anki_reading_field"),
+    ("glossary", "anki_glossary_field"),
+    ("word_type", "anki_word_type_field"),
+    ("sentence", "anki_sentence_field"),
+    ("game", "anki_game_field"),
+)
+
+BUSY = {"ok": False, "error": "capture already in progress"}
+
+
+async def _read_b64(path: str) -> str:
+    def read():
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return await asyncio.to_thread(read)
 
 
 class Plugin:
     async def _main(self):
         self.settings = Settings(SETTINGS_DIR)
-        if not self.settings.get("capture_areas"):
-            # migrate from the region/region_alt/button_map (or even older
-            # single trigger_button) era into the capture_areas list
-            legacy_map = self.settings.get("button_map")
-            if not legacy_map:
-                legacy_map = {self.settings.get("trigger_button") or "L5": "box"}
-            region = self.settings.get("region") or _LEGACY_REGION
-            region_alt = self.settings.get("region_alt") or _LEGACY_REGION_ALT
-            areas = [
-                {"region": region if mode == "box" else region_alt, "button": button}
-                for button, mode in legacy_map.items()
-                if mode in ("box", "alt")
-            ]
-            self.settings.set("capture_areas", areas or [{"region": region, "button": None}])
-        if self.settings.get("anki_note_type") == "Basic":
-            # there's no UI to set this to "Basic" anymore (the field-name
-            # TextFields were dropped from Panel.tsx) — anyone with this
-            # value only has it because it was never touched since before
-            # the default changed, so it's safe to migrate. Avoids a note
-            # type named "Basic" colliding (by name, not by the id that
-            # actually matters — see TEMPLATE_VERSION in anki_export.py)
-            # with Anki's own stock "Basic" note type in the UI.
-            self.settings.set("anki_note_type", "VN Lookup")
-        if self.settings.get("anki_reading_field") == "":
-            # same situation: no UI ever let this be deliberately set to
-            # blank since the field-name TextFields were dropped, so any
-            # stored blank is just the old default (reading was originally
-            # opt-in/skipped) rather than a deliberate choice
-            self.settings.set("anki_reading_field", "Reading")
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)
         self.capture = ScreenCapture(
@@ -114,38 +103,42 @@ class Plugin:
     async def _uninstall(self):
         pass
 
-    # ---- events to frontend --------------------------------------------
+    # ---- helpers -----------------------------------------------------------
 
     async def _emit(self, stage: str, **payload):
         await decky.emit("vnl_event", {"stage": stage, **payload})
 
-    # ---- trigger support -------------------------------------------------
+    async def _fail(self, message: str, **extra):
+        """Tell the frontend (toast) and return the callable's error result."""
+        await self._emit("error", message=message, **extra)
+        return {"ok": False, "error": message, **extra}
+
+    def _local_ocr(self) -> RapidOCRBackend:
+        return RapidOCRBackend(self.installer.python, self.downloader.target_dir)
+
+    def _areas_for(self, appid: str | None):
+        """This game's capture areas, or the Default list if it has none."""
+        profiles = self.settings.get("capture_profiles") or {}
+        key = str(appid) if appid else UNKNOWN_PROFILE_KEY
+        profile = profiles.get(key)
+        areas = profile.get("areas") if profile else None
+        return areas or self.settings.get("capture_areas") or []
+
+    # ---- trigger support ---------------------------------------------------
 
     async def get_button_state(self):
         return {"success": True, "buttons": self.monitor.get_button_state()}
 
-    # ---- the pipeline ----------------------------------------------------
+    # ---- the pipeline ------------------------------------------------------
 
     async def capture_and_mine(self, button: str | None = None, appid: str | None = None):
         if self._busy:
-            return {"ok": False, "error": "capture already in progress"}
+            return BUSY
         self._busy = True
         try:
             return await self._run_pipeline(button, appid)
         finally:
             self._busy = False
-
-    # bucket for captures with no Steam appid to key by — matches
-    # UNKNOWN_APP_KEY in src/api.ts
-    UNKNOWN_PROFILE_KEY = "unknown"
-
-    def _areas_for(self, appid: str | None):
-        """This game's capture areas, or the Default list if it has none."""
-        profiles = self.settings.get("capture_profiles") or {}
-        key = str(appid) if appid else self.UNKNOWN_PROFILE_KEY
-        profile = profiles.get(key)
-        areas = profile.get("areas") if profile else None
-        return areas or self.settings.get("capture_areas") or []
 
     async def _run_pipeline(self, button: str | None = None, appid: str | None = None):
         ts = int(time.time() * 1000)
@@ -157,26 +150,22 @@ class Plugin:
         await asyncio.sleep(0.15)
         try:
             await self.capture.capture_png(full_png)
-        except CaptureError as e:
+        except PngencMissing as e:
             # No pngenc in the system GStreamer: grab a raw RGB frame and
             # let the venv (Pillow) encode it instead.
-            if "pngenc" in str(e) and self.installer.is_installed():
-                try:
-                    raw, (w, h) = await self.capture.capture_raw_rgb()
-                    encoder = RapidOCRBackend(self.installer.python,
-                                              self.downloader.target_dir)
-                    await encoder.encode_raw(raw, w, h, full_png)
-                except (CaptureError, OCRError) as e2:
-                    await self._emit("error", message=f"Capture failed: {e2}")
-                    return {"ok": False, "error": str(e2)}
-            else:
-                await self._emit("error", message=f"Capture failed: {e}")
-                return {"ok": False, "error": str(e)}
+            if not self.installer.is_installed():
+                return await self._fail(f"Capture failed: {e}")
+            try:
+                raw, (w, h) = await self.capture.capture_raw_rgb()
+                await self._local_ocr().encode_raw(raw, w, h, full_png)
+            except (CaptureError, OCRError) as e2:
+                return await self._fail(f"Capture failed: {e2}")
+        except CaptureError as e:
+            return await self._fail(f"Capture failed: {e}")
 
         # 2. OCR — the trigger button picks which capture area gets cropped.
         # region rides along on the "ocr" event so the frontend can outline
         # the area actively being scanned, directly over the running game.
-        backend_name = self.settings.get("ocr_backend")
         area = next(
             (a for a in self._areas_for(appid) if a.get("button") == button),
             None)
@@ -186,16 +175,13 @@ class Plugin:
         runtime_ok = self.installer.is_installed()
         cloud_full_frame = False
         try:
-            if backend_name == "gemini":
+            if self.settings.get("ocr_backend") == "gemini":
                 image_for_ocr = full_png
-                crop_path = None
                 if region and runtime_ok:
                     # crop locally so the cloud sees only the text box
-                    local = RapidOCRBackend(self.installer.python,
-                                            self.downloader.target_dir)
                     try:
-                        crop_path = await local.crop(full_png, region, crop_png)
-                        image_for_ocr = crop_path
+                        image_for_ocr = await self._local_ocr().crop(
+                            full_png, region, crop_png)
                     except OCRError as e:
                         logger.warning(f"crop failed, sending full frame: {e}")
                         cloud_full_frame = True
@@ -203,32 +189,26 @@ class Plugin:
                     cloud_full_frame = True
                 gemini = GeminiBackend(self.settings.get("gemini_api_key"),
                                        self.settings.get("gemini_model"))
-                result = await gemini.recognize(image_for_ocr, crop_out=crop_path)
+                result = await gemini.recognize(image_for_ocr)
             else:
                 if not runtime_ok:
-                    msg = ("Local OCR runtime not installed — install it in "
-                           "the Japanese Lookup settings panel")
-                    await self._emit("error", message=msg)
-                    return {"ok": False, "error": msg}
+                    return await self._fail(
+                        "Local OCR runtime not installed — install it in "
+                        "the Japanese Lookup settings panel")
                 if not self.downloader.is_installed():
-                    msg = ("OCR models not downloaded — download them in the "
-                           "Japanese Lookup settings panel")
-                    await self._emit("error", message=msg)
-                    return {"ok": False, "error": msg}
-                local = RapidOCRBackend(self.installer.python,
-                                        self.downloader.target_dir)
-                result = await local.recognize(
+                    return await self._fail(
+                        "OCR models not downloaded — download them in the "
+                        "Japanese Lookup settings panel")
+                result = await self._local_ocr().recognize(
                     full_png, region=region, crop_out=crop_png,
                     min_confidence=float(self.settings.get("min_confidence")))
         except OCRError as e:
-            await self._emit("error", message=f"OCR failed: {e}")
-            return {"ok": False, "error": str(e)}
-
-        raw_text = result.text
-        confidence = result.mean_confidence
+            return await self._fail(f"OCR failed: {e}")
 
         # 3. cleanup — first drop UI chrome (Auto/Skip/…) around the box,
         # then normalize. raw_text keeps the unfiltered read for debugging.
+        raw_text = result.text
+        confidence = round(result.mean_confidence, 3)
         kept, dropped = cleanup.filter_ui_regions(result.regions)
         if dropped:
             logger.info(f"dropped UI fragments: {dropped}")
@@ -236,14 +216,12 @@ class Plugin:
         cleaned = cleanup.clean_ocr_text(raw_text, remove_speaker=False)
 
         if not cleaned:
-            # total OCR miss: nothing detected in the region. Still record
-            # this as the last result (empty text) so the polled sidebar
-            # can show a "no text found" notice instead of a stale sentence
-            self._last_result = {
-                "text": "", "raw": raw_text, "confidence": round(confidence, 3)}
-            msg = "No text detected in the capture region"
-            await self._emit("error", message=msg, raw=raw_text)
-            return {"ok": False, "error": msg, "raw": raw_text}
+            # total OCR miss: still record it as the last result (empty
+            # text) so the polled sidebar shows a "no text found" notice
+            # instead of a stale sentence
+            self._last_result = {"text": "", "raw": raw_text, "confidence": confidence}
+            return await self._fail("No text detected in the capture region",
+                                    raw=raw_text)
 
         warning = None
         if not cleanup.looks_like_japanese(cleaned):
@@ -261,10 +239,9 @@ class Plugin:
         payload = {
             "text": cleaned,
             "raw": raw_text,
-            "confidence": round(confidence, 3),
+            "confidence": confidence,
             "clients": self.delivery.client_count,
             "copy_to_clipboard": bool(self.settings.get("copy_to_clipboard")),
-            "auto_open_qam": True,
             "warning": warning,
         }
         self._last_result = payload
@@ -295,9 +272,8 @@ class Plugin:
             files = [os.path.join(CAPTURES_DIR, f)
                      for f in os.listdir(CAPTURES_DIR)
                      if f.startswith("capture_")]
-            preview = os.path.join(RUNTIME_DIR, "preview.png")
-            if os.path.exists(preview):
-                files.append(preview)
+            if os.path.exists(PREVIEW_PNG):
+                files.append(PREVIEW_PNG)
             return max(files, key=os.path.getmtime) if files else None
         except OSError:
             return None
@@ -307,24 +283,19 @@ class Plugin:
         path = self._latest_capture_path()
         if not path:
             return {"ok": False,
-                    "error": "no capture yet — use Refresh frame, or hold "
-                             "your capture button in-game"}
-        with open(path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        return {"ok": True, "image": b64}
+                    "error": "no capture yet — hold your capture button "
+                             "in-game first"}
+        return {"ok": True, "image": await _read_b64(path)}
 
     async def capture_editor_frame(self):
         """Fresh frame for the editor. Only call with all UI closed — the
         frontend choreographs: close modal + QAM, wait, capture, reopen."""
         if self._busy:
-            return {"ok": False, "error": "capture already in progress"}
+            return BUSY
         self._busy = True
         try:
-            path = os.path.join(RUNTIME_DIR, "preview.png")
-            await self.capture.capture_png(path)
-            with open(path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-            return {"ok": True, "image": b64}
+            await self.capture.capture_png(PREVIEW_PNG)
+            return {"ok": True, "image": await _read_b64(PREVIEW_PNG)}
         except CaptureError as e:
             return {"ok": False, "error": str(e)}
         finally:
@@ -341,12 +312,10 @@ class Plugin:
                     "error": "no capture yet — hold your capture button "
                              "in-game first"}
         if self._busy:
-            return {"ok": False, "error": "capture already in progress"}
+            return BUSY
         self._busy = True
         try:
-            local = RapidOCRBackend(self.installer.python,
-                                    self.downloader.target_dir)
-            result = await local.recognize(
+            result = await self._local_ocr().recognize(
                 path, region=None,
                 min_confidence=float(self.settings.get("min_confidence")))
             if not result.image_size:
@@ -371,30 +340,28 @@ class Plugin:
             right = max(r["rect"]["right"] for r in candidates) / width
             bottom = max(r["rect"]["bottom"] for r in candidates) / height
             pad = 0.02
+            x = max(0.0, round(left - pad, 4))
+            y = max(0.0, round(top - pad, 4))
             region = {
-                "x": max(0.0, round(left - pad, 4)),
-                "y": max(0.0, round(top - pad, 4)),
+                "x": x,
+                "y": y,
+                "w": min(1.0 - x, round(right - left + 2 * pad, 4)),
+                "h": min(1.0 - y, round(bottom - top + 2 * pad, 4)),
             }
-            region["w"] = min(1.0 - region["x"], round(right - left + 2 * pad, 4))
-            region["h"] = min(1.0 - region["y"], round(bottom - top + 2 * pad, 4))
-
-            with open(path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-            return {"ok": True, "region": region, "image": b64}
-        except (CaptureError, OCRError) as e:
+            return {"ok": True, "region": region, "image": await _read_b64(path)}
+        except OCRError as e:
             return {"ok": False, "error": str(e)}
         finally:
             self._busy = False
 
-    # ---- native lookup (Phase C: no Yomitan needed) ------------------------
+    # ---- native lookup -----------------------------------------------------
 
     async def tokenize_line(self, text: str):
         """Split a sentence into word tokens with dictionary-form keys."""
         if not text:
             return {"ok": False, "error": "no text"}
         if not self.installer.is_lookup_installed():
-            return {"ok": False,
-                    "error": "lookup runtime not installed"}
+            return {"ok": False, "error": "lookup runtime not installed"}
         if self._token_cache["text"] == text:
             return {"ok": True, "tokens": self._token_cache["tokens"]}
         try:
@@ -412,21 +379,10 @@ class Plugin:
         """
         cleaned = []
         for q in queries or []:
-            if not q:
-                continue
-            q = q.split("-")[0] if "-" in q and not q.startswith("-") else q
-            if q and q not in cleaned:
-                cleaned.append(q)
+            key = q.split("-")[0] if q and not q.startswith("-") else q
+            if key and key not in cleaned:
+                cleaned.append(key)
         entries = await asyncio.to_thread(self.dictionary.lookup, cleaned)
-        return {"ok": True, "entries": entries}
-
-    async def lookup_selection(self, text: str):
-        """Longest-prefix lookup for merged token selections."""
-        exact = await asyncio.to_thread(self.dictionary.lookup, [text])
-        if exact:
-            return {"ok": True, "entries": exact}
-        entries = await asyncio.to_thread(
-            self.dictionary.longest_prefix_lookup, text)
         return {"ok": True, "entries": entries}
 
     async def get_lookup_status(self):
@@ -441,6 +397,8 @@ class Plugin:
 
     async def import_dictionaries(self, download_jitendex: bool = False):
         return {"started": self.dictionary.start_import(download_jitendex)}
+
+    # ---- Anki queue --------------------------------------------------------
 
     async def create_anki_card(self, expression: str, reading: str,
                                glosses: str, sentence: str, game: str = "",
@@ -474,27 +432,20 @@ class Plugin:
         if not self.installer.is_anki_installed():
             return {"ok": False, "error": "Anki export runtime not installed",
                     "needs_install": True}
-        s = self.settings
+        # blank field names are skipped (mirrored in AnkiBufferModal.tsx)
         field_map = {}
-        for role, key in (
-            ("expression", "anki_expression_field"),
-            ("reading", "anki_reading_field"),
-            ("glossary", "anki_glossary_field"),
-            ("word_type", "anki_word_type_field"),
-            ("sentence", "anki_sentence_field"),
-            ("game", "anki_game_field"),
-        ):
-            name = (s.get(key) or "").strip()
+        for role, key in ANKI_FIELD_SETTINGS:
+            name = (self.settings.get(key) or "").strip()
             if name:
                 field_map[role] = name
         if not field_map:
-            return {"ok": False,
-                    "error": "no Anki fields configured in settings"}
+            return {"ok": False, "error": "no Anki fields configured in settings"}
 
         out_path = os.path.join(RUNTIME_DIR, "anki_export.apkg")
         try:
             await build_apkg(self.installer.python, self.anki_buffer.all(),
-                             s.get("anki_deck"), s.get("anki_note_type"),
+                             self.settings.get("anki_deck"),
+                             self.settings.get("anki_note_type"),
                              field_map, out_path)
         except AnkiExportError as e:
             return {"ok": False, "error": str(e)}
@@ -504,10 +455,9 @@ class Plugin:
             return {"ok": False, "error": str(e)}
         return {"ok": True, "url": url, "count": self.anki_buffer.count()}
 
-    # ---- setup / status callables -----------------------------------------
+    # ---- setup / status ----------------------------------------------------
 
     async def get_status(self):
-        probe = {}
         try:
             probe = await self.capture.probe()
         except Exception as e:
@@ -529,24 +479,8 @@ class Plugin:
     async def install_runtime(self):
         return {"started": self.installer.start_install()}
 
-    async def get_runtime_status(self):
-        return self.installer.get_status()
-
     async def download_models(self):
         return {"started": self.downloader.start_download()}
-
-    async def get_models_status(self):
-        return self.downloader.get_status()
-
-    async def cancel_models_download(self):
-        self.downloader.cancel()
-        return {"ok": True}
-
-    async def test_line(self):
-        """Send a test sentence to connected texthooker pages."""
-        text = "これはテストです。辞書で調べてみてください。"
-        await self.delivery.broadcast(text)
-        return {"ok": True, "clients": self.delivery.client_count}
 
     # ---- settings ----------------------------------------------------------
 
