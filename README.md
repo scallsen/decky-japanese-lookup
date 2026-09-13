@@ -1,8 +1,9 @@
 # Japanese Lookup — read Japanese games on the Steam Deck, and mine words into Anki
 
 > ⚠️ **Work in progress.** This is a personal project, not a polished release.
-> There's no one-click install yet, some flows are rough, and things may
-> change without notice. Use at your own risk.
+> Some flows are rough and things may change without notice. Use at your own
+> risk. It also isn't on the Decky store, so install is a one-time manual
+> step — see [Install](#install) below.
 
 A [Decky Loader](https://decky.xyz/) plugin for reading Japanese visual novels
 (or any game with text boxes) without leaving gaming mode:
@@ -22,8 +23,8 @@ on the Deck itself.
 ## Contents
 
 - [What you need](#what-you-need)
-- [Quick install (no computer needed)](#quick-install-no-computer-needed)
-- [Install from source](#install-from-source) — one-time, about 20–30 minutes
+- [Install](#install) — one-time, a few minutes, no computer needed
+- [Build from source](#build-from-source) — for contributors, or if install fails
 - [First launch on the Deck](#first-launch-on-the-deck)
 - [Everyday use](#everyday-use)
 - [Updating](#updating)
@@ -38,20 +39,22 @@ on the Deck itself.
 ## What you need
 
 - A **Steam Deck** on Wi-Fi.
-- A **computer running macOS or Linux** on the same network, to build the plugin
-  and copy it to the Deck. (Windows should work through WSL, but is untested.)
 - About **600 MB free** on the Deck for the OCR engine and dictionary.
 - *(Only for Anki)* **AnkiMobile** (iOS) or **AnkiDroid** (Android) on a phone
   on the same Wi-Fi.
 
+Building from source instead (see [below](#build-from-source)) additionally
+needs a computer on the same network.
+
 ---
 
-## Quick install (no computer needed)
+## Install
 
 Every [release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
-includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH required.
-This uses Decky's own zip-sideloading, the same mechanism other unlisted
-plugins use since this one isn't on the Decky store.
+includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — everything below happens on
+the Deck itself, no computer, Node, pnpm, or SSH required. This is the
+recommended way to install: it uses Decky's own zip-sideloading, the same
+mechanism other unlisted plugins use since this one isn't on the Decky store.
 
 1. **Install [Decky Loader](https://decky.xyz/)** first, if you haven't
    already — it's the plugin loader this plugin runs on top of. In Desktop
@@ -77,16 +80,21 @@ queue.
 
 Sideloaded zips aren't Decky's officially supported install path and can be
 flakier than the store, so if step 4 hangs or the plugin never appears, fall
-back to [installing from source](#install-from-source) below.
+back to [building from source](#build-from-source) below.
 
 ---
 
-## Install from source
+## Build from source
 
-Building it yourself also works, and is the only option if you want to
-change the code. You build the plugin from this repository and a script
-copies it to your Deck over the network. The steps below walk you through
-it.
+Only needed if the zip install above doesn't work for you, or you want to
+change the code. You build the plugin from this repository on a second
+computer and a script copies it to your Deck over the network. On top of
+[What you need](#what-you-need), this additionally requires:
+
+- A **computer running macOS or Linux** on the same network as the Deck.
+  (Windows should work through WSL, but is untested.)
+
+The steps below walk you through it.
 
 ---
 
@@ -300,7 +308,12 @@ Delete all capture areas**.
 
 ## Updating
 
-On your computer, from the `decky-japanese-lookup` folder:
+**If you installed the zip:** download the newest
+[release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
+and repeat the [Install](#install) steps — it overwrites the old install.
+
+**If you built from source:** on your computer, from the
+`decky-japanese-lookup` folder:
 
 ```bash
 git pull
@@ -308,7 +321,7 @@ pnpm install
 ./deploy.sh
 ```
 
-Your settings, downloaded dictionary, and Anki queue are kept.
+Either way, your settings, downloaded dictionary, and Anki queue are kept.
 
 ---
 
