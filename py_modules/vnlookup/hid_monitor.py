@@ -9,10 +9,10 @@ Only the Deck's built-in controller (VID 28DE / PID 1205, interface :1.2)
 and the InputPlumber virtual controller (PID 12FB) are supported.
 """
 
+import contextlib
 import fcntl
 import logging
 import os
-import queue
 import select
 import struct
 import threading
@@ -78,7 +78,6 @@ class HidrawButtonMonitor:
         self.device_pid = None
         self.running = False
         self.thread = None
-        self.event_queue = queue.Queue(maxsize=100)
         self.current_buttons = set()
         self.last_buttons_l = 0
         self.last_buttons_h = 0
@@ -124,14 +123,11 @@ class HidrawButtonMonitor:
                     fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
                     try:
                         readable, _, _ = select.select([fd], [], [], 0.1)
-                        if readable:
-                            os.read(fd, 64)
-                            os.close(fd)
-                            self.device_pid = self.STEAMDECK_PID
-                            return path
+                    finally:
                         os.close(fd)
-                    except Exception:
-                        os.close(fd)
+                    if readable:
+                        self.device_pid = self.STEAMDECK_PID
+                        return path
                 except Exception:
                     pass
             path = steamdeck_candidates[-1][1]
@@ -181,12 +177,7 @@ class HidrawButtonMonitor:
             return True
         except Exception as e:
             logger.error(f"Failed to initialize hidraw device: {e}")
-            if self.device_fd is not None:
-                try:
-                    os.close(self.device_fd)
-                except Exception:
-                    pass
-                self.device_fd = None
+            self._close_fd()
             return False
 
     def start(self):
@@ -204,13 +195,7 @@ class HidrawButtonMonitor:
         if self.thread is not None:
             self.thread.join(timeout=2.0)
             self.thread = None
-        if self.device_fd is not None:
-            try:
-                os.close(self.device_fd)
-            except Exception:
-                pass
-            self.device_fd = None
-        self.initialized = False
+        self._close_fd()
 
     def _monitor_loop(self):
         reconnect_delay = 2.0
@@ -239,14 +224,16 @@ class HidrawButtonMonitor:
                 self.error_count += 1
                 time.sleep(0.1)
 
-    def _close_device(self):
+    def _close_fd(self):
         if self.device_fd is not None:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(self.device_fd)
-            except Exception:
-                pass
             self.device_fd = None
         self.initialized = False
+
+    def _close_device(self):
+        """Close and forget the device so the loop re-discovers it."""
+        self._close_fd()
         self.device_path = None
         self.device_pid = None
 
@@ -256,7 +243,6 @@ class HidrawButtonMonitor:
         if buttons_l == self.last_buttons_l and buttons_h == self.last_buttons_h:
             return
 
-        timestamp = time.time()
         new_buttons = set()
         for name, mask in self.BUTTONS_L.items():
             if buttons_l & mask:
@@ -266,24 +252,10 @@ class HidrawButtonMonitor:
                 new_buttons.add(name)
 
         with self.lock:
-            for button in self.current_buttons - new_buttons:
-                self._enqueue({"button": button, "pressed": False, "timestamp": timestamp})
-            for button in new_buttons - self.current_buttons:
-                self._enqueue({"button": button, "pressed": True, "timestamp": timestamp})
             self.current_buttons = new_buttons
 
         self.last_buttons_l = buttons_l
         self.last_buttons_h = buttons_h
-
-    def _enqueue(self, event):
-        try:
-            self.event_queue.put_nowait(event)
-        except queue.Full:
-            try:
-                self.event_queue.get_nowait()
-                self.event_queue.put_nowait(event)
-            except Exception:
-                pass
 
     def get_button_state(self):
         with self.lock:

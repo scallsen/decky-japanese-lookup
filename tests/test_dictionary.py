@@ -4,11 +4,12 @@ import time
 import zipfile
 
 import pytest
+
 from vnlookup.dictionary import (
+    _SCHEMA_VERSION,
     Dictionary,
     _cap_glosses,
     _freq_value,
-    _SCHEMA_VERSION,
     flatten_glosses,
 )
 
@@ -173,12 +174,6 @@ def test_lookup_query_priority(dic):
 
 def test_lookup_no_hits(dic):
     assert dic.lookup(["存在しない単語"]) == []
-
-
-def test_longest_prefix(dic):
-    entries = dic.longest_prefix_lookup("言うとおりに")
-    assert entries[0]["expression"] == "言う"
-    assert entries[0]["matched"] == "言う"
 
 
 def test_reimport_replaces_not_duplicates(dic):

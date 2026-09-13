@@ -28,3 +28,11 @@ def test_new_default_appears_after_update(tmp_path):
     s = Settings(str(tmp_path))
     assert s.get("ocr_backend") == "gemini"
     assert s.get("anki_deck") == DEFAULTS["anki_deck"]
+
+
+def test_retired_keys_dropped_on_load(tmp_path):
+    (tmp_path / "vn-lookup.json").write_text(
+        json.dumps({"trigger_button": "R5", "anki_deck": "Kept"}))
+    s = Settings(str(tmp_path))
+    assert "trigger_button" not in s.all()
+    assert s.get("anki_deck") == "Kept"

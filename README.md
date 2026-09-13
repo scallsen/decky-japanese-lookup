@@ -28,6 +28,7 @@ on the Deck itself.
 - [Updating](#updating)
 - [Troubleshooting](#troubleshooting)
 - [Optional: Yomitan in Firefox](#optional-yomitan-in-firefox)
+- [For contributors](#for-contributors)
 - [Known limitations](#known-limitations)
 - [Credits & data sources](#credits--data-sources)
 
@@ -348,6 +349,18 @@ Requires **SteamOS 3.7.14 or newer** for the clipboard to reach Firefox.
    `http://127.0.0.1:8765`.
 
 Then: press L5 in-game, switch to Firefox, and hover the line to look it up.
+
+---
+
+## For contributors
+
+Before opening a pull request, run the same checks CI runs:
+
+```bash
+pnpm lint && pnpm typecheck && pnpm build   # frontend: ESLint, tsc, rollup
+pip install ruff pytest
+ruff check . && pytest -q                   # backend: lint + unit tests
+```
 
 ---
 

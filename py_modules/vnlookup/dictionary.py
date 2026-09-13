@@ -31,23 +31,13 @@ JITENDEX_URL = ("https://github.com/stephenmk/stephenmk.github.io/releases/"
 
 _BLOCK_TAGS = {"div", "li", "ul", "ol", "br", "tr", "details", "summary"}
 
-# Bump whenever an already-imported database needs reprocessing to pick up
-# a data-shape change (not a schema change alone — see Dictionary.__init__,
-# which uses PRAGMA user_version, not column presence, to gate this).
+# Bump whenever already-imported data needs reprocessing to pick up a
+# change in how term banks are flattened. On startup, a database with
+# PRAGMA user_version below this is silently re-imported from its source
+# zips (see Dictionary.__init__).
 #
-# 2, not 1: a since-fixed bug in an earlier release of this same migration
-# wrote user_version = 1 *before* its reimport ran rather than after, and
-# that reimport got killed mid-transaction by an unrelated plugin reload —
-# so any device that hit that exact race is permanently stuck reading
-# "already migrated" at version 1 despite word_type never having actually
-# been populated. Only a higher target version reaches those devices;
-# fixing __init__'s ordering going forward doesn't rewrite a version
-# number an already-shipped build already wrote.
-#
-# 3: real Jitendex entries nest another "sense"/"sense-group" <li> around
-# each glossary <li> (for the ①②③ numbering), which used to each add
-# their own bullet to the same line ("• • • to eat"), and separately embed
-# a Tatoeba example-sentence per sense that was leaking into glosses too.
+# 2: word_type split out of glosses into its own column.
+# 3: no nested "sense" bullets, Tatoeba example sentences dropped.
 _SCHEMA_VERSION = 3
 
 SCHEMA = """
@@ -78,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_meta_expr ON term_meta(expression);
 """
 
 
-def flatten_content(node, pos_out: list = None) -> str:
+def flatten_content(node, pos_out: list[str] | None = None) -> str:
     """Flatten Yomitan structured content to plain text.
 
     When `pos_out` is given, part-of-speech-info spans (Jitendex's "noun",
@@ -142,7 +132,7 @@ def flatten_content(node, pos_out: list = None) -> str:
     return str(node)
 
 
-def flatten_glosses(glosses, pos_out: list = None) -> str:
+def flatten_glosses(glosses, pos_out: list[str] | None = None) -> str:
     parts = []
     for g in glosses or []:
         if isinstance(g, str):
@@ -222,14 +212,9 @@ class Dictionary:
         self._lock = threading.Lock()
         self._cached_dicts = []
         self._cached_terms = 0
-        # set only once a migration-triggered reimport below actually
-        # *finishes* (see _import_all) — never eagerly here. On-device this
-        # raced a plugin reload: the reimport got killed mid-transaction
-        # (SQLite rolled back its uncommitted DELETE, silently undoing it),
-        # but an earlier version of this code had already written the
-        # version bump before that happened, so the next launch saw
-        # "already migrated" and never retried, leaving word_type empty
-        # forever. Only a *completed* reimport may advance this now.
+        # written to PRAGMA user_version only once a migration reimport has
+        # *completed* (see _import_all): if the plugin reloads mid-import,
+        # SQLite rolls the import back and the next launch must retry
         self._pending_schema_version: int | None = None
         os.makedirs(dicts_dir, exist_ok=True)
         needs_reimport = False
@@ -238,37 +223,19 @@ class Dictionary:
             # mid-transaction; sticky once set on the file
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
-            # migrate a terms table created before word_type existed —
-            # ADD COLUMN always appends at the end regardless of where it
-            # sits in SCHEMA above, which is fine: the INSERT in
-            # _import_zip addresses columns by name, not position
+            # terms tables created before word_type existed (inserts
+            # address columns by name, so appending it is fine)
             cols = {row[1] for row in db.execute("PRAGMA table_info(terms)")}
             if "word_type" not in cols:
                 db.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
-            # PRAGMA user_version (bumped only on completion, see above),
-            # not column presence, gates the one-time reimport below —
-            # column presence alone already bit this once: an earlier
-            # version of this migration added the column without
-            # reimporting, so by the time the reimport step was added, the
-            # column already existed on-device and a (column-missing
-            # triggered) reimport silently never ran.
             if db.execute("PRAGMA user_version").fetchone()[0] < _SCHEMA_VERSION:
-                # only if there's actually existing data to reprocess — a
-                # brand-new database has nothing to migrate, and forcing a
-                # reimport here would just race whoever creates it and
-                # calls start_import() themselves right after
+                # a brand-new database has nothing to reprocess
                 has_data = db.execute(
                     "SELECT EXISTS(SELECT 1 FROM dictionaries)").fetchone()[0]
                 needs_reimport = bool(has_data)
         if needs_reimport:
-            # ADD COLUMN alone only reaches new rows going forward — every
-            # already-imported row still has its old, unsplit glosses text
-            # (part-of-speech header baked in, word_type empty). The
-            # source zip is never deleted after import (see dicts_dir
-            # below), so silently re-run the import against it: no
-            # network needed, and it reprocesses existing dictionaries
-            # with the fixed splitting logic instead of leaving stale data
-            # around until someone happens to hit "Download dictionary".
+            # source zips are kept in dicts_dir after import, so this needs
+            # no network
             self._pending_schema_version = _SCHEMA_VERSION
             self.start_import()
 
@@ -443,25 +410,6 @@ class Dictionary:
                     "      (t.reading = ? AND t.reading != '') "
                     "ORDER BY t.score DESC LIMIT ?",
                     (q, q, limit)).fetchall()
-                if rows:
-                    return self._entries(db, rows, matched=q)
-            return []
-        finally:
-            db.close()
-
-    def longest_prefix_lookup(self, text: str, max_len: int = 24) -> list:
-        """Exact-match the longest prefix of `text` — fallback for merged
-        selections and OCR noise."""
-        db = self._connect()
-        try:
-            for ln in range(min(len(text), max_len), 0, -1):
-                q = text[:ln]
-                rows = db.execute(
-                    "SELECT t.expression, t.reading, t.glosses, t.word_type, "
-                    "       t.tags, t.score, d.title "
-                    "FROM terms t JOIN dictionaries d ON d.id = t.dict_id "
-                    "WHERE t.expression = ? ORDER BY t.score DESC LIMIT 16",
-                    (q,)).fetchall()
                 if rows:
                     return self._entries(db, rows, matched=q)
             return []

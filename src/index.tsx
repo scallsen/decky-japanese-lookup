@@ -43,7 +43,7 @@ export default definePlugin(() => {
     const watched = areasForApp(lastAppId)
       .map((a) => a?.button)
       .filter(Boolean) as TriggerButton[];
-    watcher.configure(watched, 0);
+    watcher.configure(watched);
   };
 
   const applySettings = (s: Record<string, any>) => {
@@ -54,13 +54,11 @@ export default definePlugin(() => {
   // the backend may still be starting when the frontend loads — retry
   // until the first settings fetch succeeds so a configured trigger
   // button isn't silently replaced by the default
-  let settingsLoaded = false;
   const loadInitialSettings = async (attempt = 0): Promise<void> => {
     try {
       applySettings(await getAllSettings());
-      settingsLoaded = true;
     } catch {
-      if (!settingsLoaded && attempt < 30) {
+      if (attempt < 30) {
         setTimeout(() => void loadInitialSettings(attempt + 1), 1000);
       }
     }
@@ -78,7 +76,7 @@ export default definePlugin(() => {
     if (ev.stage === "done" && ev.text && ev.copy_to_clipboard) {
       copyToClipboard(ev.text);
     }
-    if (ev.stage === "done" && ev.auto_open_qam) {
+    if (ev.stage === "done") {
       // select our plugin in Decky's QAM tab before opening it.
       // deckyState is TS-private but present at runtime; internal API, so
       // fail soft — worst case the QAM opens on the last-used view.
@@ -97,8 +95,7 @@ export default definePlugin(() => {
   };
   addEventListener<[VnlEvent]>("vnl_event", onEvent);
 
-  const onSettings = (s: Record<string, any>) => applySettings(s);
-  addEventListener<[Record<string, any>]>("vnl_settings", onSettings);
+  addEventListener<[Record<string, any>]>("vnl_settings", applySettings);
 
   routerHook.addGlobalComponent("VnLookupScanOverlay", () => <ScanOverlay />);
 
@@ -112,7 +109,7 @@ export default definePlugin(() => {
       watcher.stop();
       clearInterval(appPoll);
       removeEventListener("vnl_event", onEvent);
-      removeEventListener("vnl_settings", onSettings);
+      removeEventListener("vnl_settings", applySettings);
       routerHook.removeGlobalComponent("VnLookupScanOverlay");
     },
   };

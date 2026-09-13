@@ -1,14 +1,15 @@
 """Persistent buffer of cards pending Anki export.
 
-Same atomic-write idiom as settings.py, but its own file under RUNTIME_DIR
-rather than inside vn-lookup.json — this is transient, user-clearable state,
-not a setting.
+Its own file under RUNTIME_DIR rather than inside vn-lookup.json — this is
+transient, user-clearable state, not a setting.
 """
 
 import json
 import os
 import uuid
 from typing import Any
+
+from .settings import write_json_atomic
 
 
 class PendingCards:
@@ -25,11 +26,7 @@ class PendingCards:
             self._data = []
 
     def save(self) -> None:
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.path)
+        write_json_atomic(self.path, self._data)
 
     def add(self, expression: str, reading: str, glosses: str, sentence: str,
             game: str = "", word_type: str = "") -> dict:
