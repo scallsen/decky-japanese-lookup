@@ -122,8 +122,8 @@ npm install -g pnpm
 Then download this repository and install its dependencies:
 
 ```bash
-git clone https://github.com/scallsen/steam-deck-vn-lookup.git
-cd steam-deck-vn-lookup
+git clone https://github.com/scallsen/decky-japanese-lookup.git
+cd decky-japanese-lookup
 pnpm install
 ```
 
@@ -260,7 +260,7 @@ Delete all capture areas**.
 
 ## Updating
 
-On your computer, from the `steam-deck-vn-lookup` folder:
+On your computer, from the `decky-japanese-lookup` folder:
 
 ```bash
 git pull
