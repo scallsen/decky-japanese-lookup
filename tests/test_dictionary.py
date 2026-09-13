@@ -49,31 +49,60 @@ def test_import_counts(dic):
     assert st["ready"]
 
 
-def test_migrates_pre_word_type_database(tmp_path):
-    # simulate an already-imported DB from before word_type existed —
-    # opening it must not crash, and must add the column so a re-import
-    # (or a fresh one) can populate it
-    db_path = tmp_path / "dict.sqlite3"
+def _make_pre_word_type_db(db_path, dict_title):
     conn = sqlite3.connect(str(db_path))
-    conn.executescript("""
+    conn.executescript(f"""
         CREATE TABLE dictionaries (id INTEGER PRIMARY KEY, title TEXT UNIQUE,
                                     revision TEXT, kind TEXT);
         CREATE TABLE terms (dict_id INTEGER, expression TEXT, reading TEXT,
                              glosses TEXT, tags TEXT, score INTEGER);
         CREATE TABLE term_meta (dict_id INTEGER, expression TEXT, mode TEXT,
                                  data TEXT);
-        INSERT INTO dictionaries VALUES (1, 'Old', '1', 'term');
+        INSERT INTO dictionaries VALUES (1, '{dict_title}', '1', 'term');
         INSERT INTO terms VALUES (1, '古い', 'ふるい', 'old', '', 1);
     """)
     conn.commit()
     conn.close()
 
+
+def test_migrates_pre_word_type_database_with_no_cached_zip(tmp_path):
+    # no source zip to re-import from (e.g. it really was deleted) — must
+    # still not crash; the column is added but the stale row is left as-is
+    # until the user re-imports themselves
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "Old")
     dicts_dir = tmp_path / "dicts"
     dicts_dir.mkdir()
     d = Dictionary(str(db_path), str(dicts_dir))
     entries = d.lookup(["古い"])
     assert entries[0]["glosses"] == "old"
     assert entries[0]["word_type"] == ""
+
+
+def test_migrates_pre_word_type_database_reimports_cached_zip(tmp_path):
+    # the common case: the dictionary zip is still sitting in dicts_dir
+    # (never deleted after the original import) — migrating should
+    # silently re-run the import against it, so already-imported entries
+    # end up with the header correctly split out, with no user action
+    db_path = tmp_path / "dict.sqlite3"
+    _make_pre_word_type_db(db_path, "TestDict")  # matches make_dict_zip's title
+    dicts_dir = tmp_path / "dicts"
+    dicts_dir.mkdir()
+    make_dict_zip(dicts_dir / "test.zip")
+
+    d = Dictionary(str(db_path), str(dicts_dir))
+    while d.get_status()["importing"]:
+        time.sleep(0.02)
+    assert d.get_status()["error"] is None
+
+    # the pre-migration "古い" row came only from the hand-built old-schema
+    # DB, not from make_dict_zip's fixture — re-importing "TestDict"
+    # replaces its rows entirely, so this one is gone; that's expected
+    # (the dictionary's own re-import semantics, unrelated to word_type)
+    assert d.lookup(["古い"]) == []
+    entries = d.lookup(["食べる"])
+    assert "to eat" in entries[0]["glosses"]
+    assert "• to live on" in entries[0]["glosses"]
 
 
 def test_lookup_by_expression_with_meta(dic):

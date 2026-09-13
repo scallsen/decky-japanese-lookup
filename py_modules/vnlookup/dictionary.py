@@ -193,6 +193,7 @@ class Dictionary:
         self._cached_dicts = []
         self._cached_terms = 0
         os.makedirs(dicts_dir, exist_ok=True)
+        needs_reimport = False
         with self._connect() as db:
             # WAL lets the panel's status polls read while an import is
             # mid-transaction; sticky once set on the file
@@ -205,6 +206,17 @@ class Dictionary:
             cols = {row[1] for row in db.execute("PRAGMA table_info(terms)")}
             if "word_type" not in cols:
                 db.execute("ALTER TABLE terms ADD COLUMN word_type TEXT")
+                needs_reimport = True
+        if needs_reimport:
+            # ADD COLUMN alone only reaches new rows going forward — every
+            # already-imported row still has its old, unsplit glosses text
+            # (part-of-speech header baked in, word_type empty). The
+            # source zip is never deleted after import (see dicts_dir
+            # below), so silently re-run the import against it: no
+            # network needed, and it reprocesses existing dictionaries
+            # with the fixed splitting logic instead of leaving stale data
+            # around until someone happens to hit "Download dictionary".
+            self.start_import()
 
     def _connect(self):
         return sqlite3.connect(self.db_path, timeout=10)
