@@ -1,8 +1,8 @@
 # Japanese Lookup — read Japanese games on the Steam Deck, and mine words into Anki
 
 > ⚠️ **Work in progress.** This is a personal project, not a polished release.
-> There's no one-click install yet, some flows are rough, and things may
-> change without notice. Use at your own risk.
+> Some flows are rough, and things may change without notice. Use at your own
+> risk.
 
 A [Decky Loader](https://decky.xyz/) plugin for reading Japanese visual novels
 (or any game with text boxes) without leaving gaming mode:
@@ -22,15 +22,14 @@ on the Deck itself.
 ## Contents
 
 - [What you need](#what-you-need)
-- [Quick install (no computer needed)](#quick-install-no-computer-needed)
-- [Install from source](#install-from-source) — one-time, about 20–30 minutes
+- [Install](#install)
 - [First launch on the Deck](#first-launch-on-the-deck)
 - [Everyday use](#everyday-use)
 - [Updating](#updating)
 - [Freeing up space and uninstalling](#freeing-up-space-and-uninstalling)
 - [Troubleshooting](#troubleshooting)
 - [Optional: Yomitan in Firefox](#optional-yomitan-in-firefox)
-- [For contributors](#for-contributors)
+- [Contributing & building from source](#contributing--building-from-source)
 - [Known limitations](#known-limitations)
 - [Credits & data sources](#credits--data-sources)
 
@@ -39,20 +38,18 @@ on the Deck itself.
 ## What you need
 
 - A **Steam Deck** on Wi-Fi.
-- A **computer running macOS or Linux** on the same network, to build the plugin
-  and copy it to the Deck. (Windows should work through WSL, but is untested.)
 - About **600 MB free** on the Deck for the OCR engine and dictionary.
 - *(Only for Anki)* **AnkiMobile** (iOS) or **AnkiDroid** (Android) on a phone
   on the same Wi-Fi.
 
 ---
 
-## Quick install (no computer needed)
+## Install
 
 Every [release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
-includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH required.
-This uses Decky's own zip-sideloading, the same mechanism other unlisted
-plugins use since this one isn't on the Decky store.
+includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — no computer, Node, pnpm, or
+SSH required. This uses Decky's own zip-sideloading, the same mechanism other
+unlisted plugins use since this one isn't on the Decky store.
 
 1. **Install [Decky Loader](https://decky.xyz/)** first, if you haven't
    already — it's the plugin loader this plugin runs on top of. In Desktop
@@ -70,131 +67,13 @@ plugins use since this one isn't on the Decky store.
    Loader (`systemctl restart plugin_loader` in Konsole, or just reboot) if
    **Japanese Lookup** doesn't show up right away.
 
-Then skip ahead to [First launch on the Deck](#first-launch-on-the-deck).
-
-To update later, just repeat these steps with the newest release's zip — it
-overwrites the old install and keeps your settings, dictionary, and Anki
-queue.
+Then continue to [First launch on the Deck](#first-launch-on-the-deck).
 
 Sideloaded zips aren't Decky's officially supported install path and can be
-flakier than the store, so if step 4 hangs or the plugin never appears, fall
-back to [installing from source](#install-from-source) below.
-
----
-
-## Install from source
-
-Building it yourself also works, and is the only option if you want to
-change the code. You build the plugin from this repository and a script
-copies it to your Deck over the network. The steps below walk you through
-it.
-
----
-
-### Step 1 — Prepare the Deck (Desktop Mode)
-
-This is the only time you need Desktop Mode. On the Deck, press the
-**Steam button → Power → Switch to Desktop**, then open **Konsole** (from the
-app launcher, under *System*).
-
-1. **Set a password** for the `deck` user, if you've never done so. You'll
-   need it again in Step 4.
-
-   ```bash
-   passwd
-   ```
-
-2. **Turn on SSH**, so your computer can copy files to the Deck:
-
-   ```bash
-   sudo systemctl enable --now sshd
-   ```
-
-3. **Install Decky Loader.** Open a browser on the Deck, go to
-   [decky.xyz](https://decky.xyz/), download the installer, and run it
-   (choose the *release* version). Or paste this into Konsole:
-
-   ```bash
-   curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh
-   ```
-
-4. **Note the Deck's address.** It's usually `steamdeck.local`. If that doesn't
-   work later on, use its IP address instead: *Settings → Internet →* select
-   your Wi-Fi network, and look for the IP address (e.g. `192.168.1.42`).
-
-You can now switch back to gaming mode (the *Return to Gaming Mode* icon on
-the desktop).
-
-### Step 2 — Connect your computer to the Deck
-
-On your computer, open a terminal.
-
-1. **Create an SSH key** (skip if `~/.ssh/id_ed25519` already exists; just
-   press Enter at every prompt):
-
-   ```bash
-   ssh-keygen -t ed25519
-   ```
-
-2. **Copy it to the Deck.** It asks for the `deck` password from Step 1:
-
-   ```bash
-   ssh-copy-id deck@steamdeck.local
-   ```
-
-3. **Check it works.** This should log you in *without* asking for a password.
-   Type `exit` to leave again.
-
-   ```bash
-   ssh deck@steamdeck.local
-   ```
-
-Replace `steamdeck.local` with the Deck's IP address everywhere if it doesn't
-connect.
-
-### Step 3 — Get the code and build tools
-
-You need [Node.js](https://nodejs.org/) 22 or newer, and `pnpm`:
-
-```bash
-npm install -g pnpm
-```
-
-Then download this repository and install its dependencies:
-
-```bash
-git clone https://github.com/scallsen/decky-japanese-lookup.git
-cd decky-japanese-lookup
-pnpm install
-```
-
-### Step 4 — Tell the deploy script about your Deck
-
-Create your local settings file from the template:
-
-```bash
-cp .vscode/defsettings.json .vscode/settings.json
-```
-
-Open `.vscode/settings.json` in any text editor and fill in:
-
-| Setting    | What to put there                                                     |
-| ---------- | --------------------------------------------------------------------- |
-| `deckip`   | `steamdeck.local`, or the Deck's IP address                           |
-| `deckpass` | The `deck` password from Step 1 (needed to install the plugin as root) |
-| `deckkey`  | Leave as is, unless your SSH key isn't `~/.ssh/id_ed25519`             |
-
-Leave the other values alone. This file is ignored by git, so your password
-stays on your computer.
-
-### Step 5 — Install the plugin on the Deck
-
-```bash
-./deploy.sh
-```
-
-This builds the plugin, copies it to the Deck, and restarts Decky. It should
-end with `==> Done.` Run the same command again any time you want to reinstall.
+flakier than the store, so if step 4 hangs or the plugin never appears, see
+[Troubleshooting](#troubleshooting) below. If you'd rather build it yourself
+(or want to change the code), see
+[Contributing & building from source](#contributing--building-from-source).
 
 ---
 
@@ -301,15 +180,12 @@ Delete all capture areas**.
 
 ## Updating
 
-On your computer, from the `decky-japanese-lookup` folder:
+Repeat the steps in [Install](#install) with the newest release's zip — it
+overwrites the old install and keeps your settings, dictionary, and Anki
+queue.
 
-```bash
-git pull
-pnpm install
-./deploy.sh
-```
-
-Your settings, downloaded dictionary, and Anki queue are kept.
+If you built the plugin from source, see
+[DEVELOPMENT.md](DEVELOPMENT.md#updating-a-source-install) instead.
 
 ---
 
@@ -357,19 +233,10 @@ rm -rf ~/.cache/pip
 
 ## Troubleshooting
 
-**`ssh` / `./deploy.sh` can't reach `steamdeck.local`**
-Use the Deck's IP address instead (Settings → Internet → your network), both
-in the commands and in `.vscode/settings.json`. Make sure the Deck is awake
-and on the same network.
-
-**`./deploy.sh` asks for a password or says "Permission denied"**
-Your SSH key isn't set up — redo [Step 2](#step-2--connect-your-computer-to-the-deck).
-If it fails at the *Installing as root* step, check `deckpass` in
-`.vscode/settings.json` matches the Deck's `deck` password.
-
 **Japanese Lookup doesn't show up in Decky**
-Restart the Deck, then check again. If it's still missing, rerun
-`./deploy.sh` and look for errors in its output.
+Restart the Deck, then check again. If it's still missing, redownload the zip
+and reinstall it (see [Install](#install)), and check Decky Loader's own logs
+for errors.
 
 **Pressing L5 does nothing**
 - Make sure a game is running (it doesn't work from the Steam menus).
@@ -393,13 +260,16 @@ again for a new one.
 
 **Something else broke**
 Logs are on the Deck in `~/homebrew/logs/vn-lookup/` (one file per start).
-To see the end of the newest one from your computer:
+To see the end of the newest one from your computer over SSH:
 
 ```bash
 ssh deck@steamdeck.local 'cd ~/homebrew/logs/vn-lookup && tail -n 100 "$(ls -t | head -1)"'
 ```
 
 Please include it if you open an issue.
+
+Building from source and its own SSH/deploy setup has a separate
+troubleshooting section in [DEVELOPMENT.md](DEVELOPMENT.md#troubleshooting).
 
 ---
 
@@ -434,15 +304,11 @@ Then: press L5 in-game, switch to Firefox, and hover the line to look it up.
 
 ---
 
-## For contributors
+## Contributing & building from source
 
-Before opening a pull request, run the same checks CI runs:
-
-```bash
-pnpm lint && pnpm typecheck && pnpm build   # frontend: ESLint, tsc, rollup
-pip install ruff pytest
-ruff check . && pytest -q                   # backend: lint + unit tests
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for building the plugin from source,
+deploying it to your Deck over SSH, and the checks to run before opening a
+pull request.
 
 ---
 
