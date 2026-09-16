@@ -164,6 +164,28 @@ section:last-of-type { border-bottom: 0; }
 .step-text td { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .step-text td:last-child { color: var(--muted); padding-left: 24px; text-align: right; }
 
+.frame[hidden] { display: none; }
+.frame-caption { margin: 10px 0 0; font-size: 0.875rem; color: var(--muted); }
+.frames-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; min-height: 28px; }
+.frames-dots { display: flex; gap: 8px; }
+.frames-dots button {
+  width: 12px; height: 12px; padding: 0;
+  background: transparent; border: 1px solid var(--muted);
+  cursor: pointer;
+}
+.frames-dots button[aria-current="true"] { background: var(--accent); border-color: var(--accent); }
+.frames-toggle {
+  padding: 4px 10px;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 0.8125rem;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.frames-toggle:hover { color: var(--heading); border-color: var(--muted); }
+html:not(.js) .frame[hidden] { display: block; }
+html:not(.js) .frame + .frame { margin-top: 16px; }
+html:not(.js) .frames-bar { display: none; }
+
 .stepper-nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-top: 1px solid var(--line); }
 .stepper-count { color: var(--muted); font-variant-numeric: tabular-nums; }
 
