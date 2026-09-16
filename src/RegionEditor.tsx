@@ -91,7 +91,7 @@ const handleStyle = (corner: string): CSSProperties => ({
   touchAction: "none",
 });
 
-export const RegionEditorModal: FC<{
+const RegionEditorModal: FC<{
   title: string;
   onSave: (region: Region, image: string | null) => void;
   initial: Region;

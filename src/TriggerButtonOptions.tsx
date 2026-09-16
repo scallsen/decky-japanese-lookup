@@ -67,7 +67,7 @@ const BUTTON_CATEGORY: Record<TriggerButton, string> = {
 // "Change area" DialogButton next to it, rather than forcing it taller
 const ICON_SIZE = 18;
 
-export const TriggerButtonIcon: FC<{
+const TriggerButtonIcon: FC<{
   code: string;
   dark?: boolean;
   size?: number;
