@@ -16,16 +16,21 @@ import { FC, ReactNode, useEffect, useRef, useState } from "react";
 import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
   clearAnkiBuffer,
+  deleteAllAreaScreenshots,
+  deleteAreaScreenshot,
   deleteDownloadedData,
   downloadModels,
   exportAnkiBuffer,
   getAllSettings,
+  getAreaScreenshot,
   getDownloadedDataSize,
   getStatus,
   installAnkiExportRuntime,
   installRuntime,
   PluginStatus,
   Region,
+  saveAreaScreenshot,
+  SCREEN_ASPECT_RATIO,
   setSetting,
   UNKNOWN_APP_KEY,
   VnlEvent,
@@ -39,6 +44,9 @@ import { openTriggerButtonMenu, TriggerButtonSelector } from "./TriggerButtonOpt
 interface CaptureArea {
   region: Region;
   button: string | null;
+  // id of the persisted screenshot taken when this area's region was last
+  // saved — absent until the area has been edited at least once
+  screenshot_id?: string | null;
 }
 
 interface CaptureProfile {
@@ -54,15 +62,19 @@ const formatMb = (bytes: number) =>
   bytes < 1_000_000 ? "<1 MB" : `${Math.round(bytes / 1_000_000)} MB`;
 
 // Cheap at-a-glance preview of where a region sits on screen — a grey box
-// standing in for the display, with a blue box for the region, positioned
+// standing in for the display (or the screenshot taken when the region was
+// last saved, if we have one), with a blue box for the region, positioned
 // with the same x/y/w/h-as-percentage math as the visual region editor
-// (RegionEditor.tsx), just without the screenshot or drag handling.
-const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
+// (RegionEditor.tsx), just without the drag handling. Must match the
+// editor's SCREEN_ASPECT_RATIO + objectFit: "fill" exactly — the region's
+// fractions were drawn against that mapping, so anything else misaligns
+// the blue box against the screenshot.
+const AreaThumbnail: FC<{ region: Region; screenshotSrc?: string }> = ({ region, screenshotSrc }) => (
   <div
     style={{
       position: "relative",
       width: "100%",
-      aspectRatio: "16 / 9",
+      aspectRatio: SCREEN_ASPECT_RATIO,
       background: "rgba(255,255,255,0.06)",
       border: "1px solid rgba(255,255,255,0.15)",
       borderRadius: 4,
@@ -70,6 +82,19 @@ const AreaThumbnail: FC<{ region: Region }> = ({ region }) => (
       marginBottom: 8,
     }}
   >
+    {screenshotSrc ? (
+      <img
+        src={`data:image/png;base64,${screenshotSrc}`}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "fill",
+          filter: "brightness(0.55)",
+        }}
+      />
+    ) : null}
     <div
       style={{
         position: "absolute",
@@ -169,6 +194,8 @@ export const Panel: FC = () => {
   const [showDebug, setShowDebug] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
   const [dataMsg, setDataMsg] = useState("");
+  // screenshot_id -> base64 PNG, fetched lazily and cached across renders
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const alive = useRef(true);
   const lastLocalEdit = useRef(0);
 
@@ -283,6 +310,21 @@ export const Panel: FC = () => {
   const hasCustomProfile = !!editingProfile?.areas?.length;
   const areas: CaptureArea[] = hasCustomProfile ? editingProfile.areas : defaultAreas;
 
+  // lazily fetch any area screenshot we haven't cached yet — cheap no-op
+  // once every id currently in `areas` is already in `thumbs`
+  useEffect(() => {
+    for (const a of areas) {
+      const id = a.screenshot_id;
+      if (id && !(id in thumbs)) {
+        void getAreaScreenshot(id).then((r) => {
+          if (r.ok && r.image) {
+            setThumbs((prev) => (id in prev ? prev : { ...prev, [id]: r.image! }));
+          }
+        });
+      }
+    }
+  }, [areas, thumbs]);
+
   // editing with no saved profile yet writes one on the first change,
   // seeded from whatever Default showed — that's the "automatic save"
   const updateAreas = (next: CaptureArea[]) => {
@@ -304,13 +346,44 @@ export const Panel: FC = () => {
     updateAreas(next);
   };
 
-  const setAreaRegion = (i: number, region: Region) => {
-    updateAreas(areas.map((a, idx) => (idx === i ? { ...a, region } : a)));
+  const setAreaRegion = (i: number, region: Region, screenshotId?: string) => {
+    updateAreas(
+      areas.map((a, idx) =>
+        idx === i ? { ...a, region, ...(screenshotId ? { screenshot_id: screenshotId } : {}) } : a
+      )
+    );
   };
 
-  const addArea = () => updateAreas([...areas, { region: NEW_AREA_REGION, button: null }]);
+  // persists the screenshot the editor was showing when the user saved
+  // (skipped on cancel, since openRegionEditor's onSave only fires on save)
+  const saveAreaEdit = async (i: number, region: Region, image: string | null) => {
+    const area = areas[i];
+    let screenshotId = area.screenshot_id ?? undefined;
+    if (image) {
+      const r = await saveAreaScreenshot(image, screenshotId ?? null);
+      if (r.ok && r.id) {
+        screenshotId = r.id;
+        setThumbs((prev) => ({ ...prev, [r.id!]: image }));
+      }
+    }
+    setAreaRegion(i, region, screenshotId);
+  };
 
-  const deleteArea = (i: number) => updateAreas(areas.filter((_, idx) => idx !== i));
+  const addArea = () => updateAreas([...areas, { region: NEW_AREA_REGION, button: "L4" }]);
+
+  const deleteArea = (i: number) => {
+    const id = areas[i].screenshot_id;
+    updateAreas(areas.filter((_, idx) => idx !== i));
+    if (id) {
+      void deleteAreaScreenshot(id);
+      setThumbs((prev) => {
+        if (!(id in prev)) return prev;
+        const rest = { ...prev };
+        delete rest[id];
+        return rest;
+      });
+    }
+  };
 
   if (!settings) {
     return (
@@ -395,7 +468,10 @@ export const Panel: FC = () => {
             }}
           >
             <PanelSectionRow>
-              <AreaThumbnail region={area.region} />
+              <AreaThumbnail
+                region={area.region}
+                screenshotSrc={area.screenshot_id ? thumbs[area.screenshot_id] : undefined}
+              />
             </PanelSectionRow>
             <PanelSectionRow>
               <Focusable
@@ -412,7 +488,7 @@ export const Panel: FC = () => {
                     openRegionEditor(
                       "Select the area to capture",
                       area.region,
-                      (r) => setAreaRegion(i, r)
+                      (r, image) => void saveAreaEdit(i, r, image)
                     )
                   }
                 >
@@ -576,7 +652,11 @@ export const Panel: FC = () => {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            onClick={() => update("capture_profiles", {})}
+            onClick={() => {
+              update("capture_profiles", {});
+              void deleteAllAreaScreenshots();
+              setThumbs({});
+            }}
           >
             Delete all capture areas
           </ButtonItem>
@@ -624,6 +704,10 @@ export const Panel: FC = () => {
                 <b>{status?.monitor.initialized ? "hooked" : "not found"}</b>
                 {" · "}PipeWire:{" "}
                 <b>{status?.capture?.pipewire_source ? "ok" : "no source"}</b>
+              </div>
+              <div>
+                Running app appid: <b>{runningApp?.appid ?? "(none reported)"}</b>
+                {" · "}Capture-area profile key: <b>{editingKey}</b>
               </div>
             </div>
           </PanelSectionRow>
