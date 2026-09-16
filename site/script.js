@@ -13,7 +13,6 @@
     root.classList.add('frames-live');
     var dots = bar.querySelector('.frames-dots');
     var toggle = bar.querySelector('.frames-toggle');
-    var caption = bar.querySelector('.frames-caption');
     var buttons = frames.map(function (_, i) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -32,8 +31,6 @@
     function go(i) {
       index = (i + frames.length) % frames.length;
       frames.forEach(function (f, j) { f.hidden = j !== index; });
-      var text = frames[index].querySelector('.frame-caption');
-      caption.textContent = text ? text.textContent : '';
       buttons.forEach(function (b, j) {
         if (j === index) b.setAttribute('aria-current', 'true');
         else b.removeAttribute('aria-current');
