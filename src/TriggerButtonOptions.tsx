@@ -116,6 +116,10 @@ export const TriggerButtonSelector: FC<{
       style={{
         flex: 1,
         minWidth: 0,
+        // zero the native left/right inset (wider than the vertical one the
+        // button gets for free from centering below) and re-add it
+        // ourselves on the inner div, sized to match that same vertical gap
+        padding: 0,
         background: dark ? "rgba(255,255,255,0.9)" : undefined,
       }}
       onGamepadFocus={() => setGamepadFocused(true)}
@@ -130,6 +134,8 @@ export const TriggerButtonSelector: FC<{
           alignItems: "center",
           justifyContent: "space-between",
           height: "100%",
+          padding: "0 10px",
+          boxSizing: "border-box",
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -178,7 +184,15 @@ const TriggerMenuItem: FC<{
       {opt.data !== "off" && <TriggerButtonIcon code={opt.data} dark={isHovered} />}
       <span
         style={{
-          color: isHovered ? "#0E141B" : isCurrent ? "#fff" : undefined,
+          // this popup doesn't inherit the QAM panel's own theme CSS (it's
+          // a separate showContextMenu overlay), so an unset color falls
+          // back to Steam's own default — dark text meant for a light menu
+          // background, invisible on our normal (dark, unhovered) row.
+          // Always pick explicitly: dark text on the hovered row's white
+          // fill, light text everywhere else. Current selection is bolded
+          // instead of recolored, so it stays legible the same way.
+          color: isHovered ? "#0E141B" : "#fff",
+          fontWeight: isCurrent ? 700 : undefined,
         }}
       >
         {opt.label}
