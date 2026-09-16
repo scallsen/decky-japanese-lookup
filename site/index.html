@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Japanese Lookup for Steam Deck</title>
+<meta name="description" content="A Decky Loader plugin that reads the Japanese text box on screen, looks up every word, and sends the ones you want to Anki — without leaving Gaming Mode.">
+<meta property="og:title" content="Japanese Lookup for Steam Deck">
+<meta property="og:description" content="Read Japanese games on the Steam Deck and mine words into Anki. On-device OCR, offline dictionary, QR export to your phone.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>document.documentElement.className = 'js';</script>
+</head>
+<body>
+
+<!--
+  Screenshot placeholders: every <div class="shot"> is a spot for a real capture.
+  Replace the div with <img src="assets/…" alt="…"> of the same aspect ratio.
+-->
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="wordmark" href="#top">Japanese Lookup <span>for Steam Deck</span></a>
+    <nav class="nav-links" aria-label="Site">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/scallsen/decky-japanese-lookup">GitHub</a>
+      <a class="btn btn-small" href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap">
+    <div class="deck">
+      <img class="deck-outline" src="assets/steamdeck-front.svg" alt="" width="1024" height="414">
+      <div class="deck-screen">
+        <div class="shot shot-hero">Screenshot: a visual novel with the Quick Access panel open, the captured line split into words and a definition showing</div>
+      </div>
+    </div>
+    <h1>Read Japanese games on your Steam Deck.</h1>
+    <p class="lead">
+      A <a href="https://decky.xyz/">Decky Loader</a> plugin that reads the text box on screen,
+      looks up every word, and sends the ones you want to Anki — all in Gaming Mode, all on the Deck.
+    </p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">Download latest release</a>
+      <a class="btn btn-ghost" href="#install">Install guide</a>
+    </div>
+    <p class="note">Work in progress. It's a personal project — some flows are rough, and things may change.</p>
+  </div>
+</section>
+
+<section class="how" id="how">
+  <div class="wrap">
+    <h2>At the press of a button</h2>
+    <ol class="steps">
+      <li>
+        <img class="key" src="assets/l5.svg" alt="L5 back button" width="32" height="32">
+        <h3>Press L5</h3>
+        <p>While a line of Japanese is on screen. A brief outline flashes over the text box.</p>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <h3>The line is read on the Deck</h3>
+        <p>The text box is screenshotted and OCR'd locally. No internet needed.</p>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <h3>Move over a word</h3>
+        <p>The Quick Access menu opens with the line split into words. D-pad or tap to see a definition.</p>
+      </li>
+      <li>
+        <span class="num">4</span>
+        <h3>Send words to Anki</h3>
+        <p>Queue the ones you want, then scan a QR code with your phone to import them into AnkiMobile or AnkiDroid.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <h2>Features</h2>
+    <ul class="grid">
+      <li>
+        <h3>Never leave the game</h3>
+        <p>Lookup happens in the Quick Access menu. Close it with B and keep playing.</p>
+      </li>
+      <li>
+        <h3>Works offline</h3>
+        <p>OCR engine and dictionary are downloaded once and stay on the Deck. Nothing is sent anywhere.</p>
+      </li>
+      <li>
+        <h3>Real dictionary</h3>
+        <p>Ships with <a href="https://jitendex.org/">Jitendex</a>, built on JMdict. Any Yomitan-format dictionary works too.</p>
+      </li>
+      <li>
+        <h3>Anki mining</h3>
+        <p>Cards carry the word, reading, meaning, the full sentence, and the game's name. Export to your phone over Wi-Fi.</p>
+      </li>
+      <li>
+        <h3>Per-game capture area</h3>
+        <p>Drag a box over the text box once; the plugin remembers it for that game.</p>
+      </li>
+      <li>
+        <h3>Your choice of button</h3>
+        <p>L4, R4, L5, or R5. Give a second button its own area — one for the text box, one for the whole screen.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">No computer needed. About ten minutes on the Deck, plus a few minutes of downloads on first launch.</p>
+
+    <ul class="reqs">
+      <li>A Steam Deck on Wi-Fi</li>
+      <li>About 600 MB free</li>
+      <li>AnkiMobile or AnkiDroid on a phone <em>(only for Anki)</em></li>
+    </ul>
+
+    <div class="stepper">
+      <div class="stepper-tabs" role="tablist" aria-label="Install steps">
+        <button role="tab" aria-selected="true" aria-controls="step-1" id="tab-1"><b>1</b> <span>Decky Loader</span></button>
+        <button role="tab" aria-selected="false" aria-controls="step-2" id="tab-2" tabindex="-1"><b>2</b> <span>Download</span></button>
+        <button role="tab" aria-selected="false" aria-controls="step-3" id="tab-3" tabindex="-1"><b>3</b> <span>Developer Mode</span></button>
+        <button role="tab" aria-selected="false" aria-controls="step-4" id="tab-4" tabindex="-1"><b>4</b> <span>Install from zip</span></button>
+        <button role="tab" aria-selected="false" aria-controls="step-5" id="tab-5" tabindex="-1"><b>5</b> <span>First launch</span></button>
+      </div>
+
+      <section class="step" id="step-1" role="tabpanel" aria-labelledby="tab-1">
+        <div class="shot shot-step">Screenshot: Desktop Mode with decky.xyz open in the browser and the installer running</div>
+        <div class="step-text">
+          <h3>Install Decky Loader</h3>
+          <p>Skip this if you already have Decky.</p>
+          <ol>
+            <li>Hold the <b>Steam</b> button → <b>Power</b> → <b>Switch to Desktop</b>.</li>
+            <li>Open a browser, go to <a href="https://decky.xyz/">decky.xyz</a>, download the installer and run it. Choose the <b>release</b> version.</li>
+            <li>Switch back to Gaming Mode when it's done.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="step" id="step-2" role="tabpanel" aria-labelledby="tab-2">
+        <div class="shot shot-step">Screenshot: the GitHub release page on the Deck with the .zip asset highlighted</div>
+        <div class="step-text">
+          <h3>Download the plugin zip</h3>
+          <p>On the Deck, open the <a href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">latest release</a> and download <code>vn-lookup-vX.Y.Z.zip</code>. Desktop Mode's browser is easiest, but Gaming Mode's works too.</p>
+          <p>It lands in <code>Downloads</code>.</p>
+        </div>
+      </section>
+
+      <section class="step" id="step-3" role="tabpanel" aria-labelledby="tab-3">
+        <div class="shot shot-step">Screenshot: Decky settings, General tab, with the Developer Mode toggle at the bottom</div>
+        <div class="step-text">
+          <h3>Turn on Developer Mode</h3>
+          <p>The plugin isn't on the Decky store, so it's installed from the zip.</p>
+          <ol>
+            <li>Press <b>…</b> (Quick Access) → the <b>Decky</b> tab (plug icon).</li>
+            <li>Press the gear icon → <b>General</b>.</li>
+            <li>Turn on <b>Developer Mode</b> at the bottom.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="step" id="step-4" role="tabpanel" aria-labelledby="tab-4">
+        <div class="shot shot-step">Screenshot: the Developer tab with "Install from zip" and the file browser showing Downloads</div>
+        <div class="step-text">
+          <h3>Install from zip</h3>
+          <ol>
+            <li>A new <b>Developer</b> tab appears in Decky settings. Open it.</li>
+            <li>Press <b>Install from zip</b>, browse to <code>Downloads</code>, and select the file.</li>
+            <li>Wait for it to finish, then check the <b>Decky</b> tab for <b>Japanese Lookup</b>.</li>
+          </ol>
+          <p>If it doesn't show up right away, restart the Deck.</p>
+        </div>
+      </section>
+
+      <section class="step" id="step-5" role="tabpanel" aria-labelledby="tab-5">
+        <div class="shot shot-step">Screenshot: the plugin's panel on first open, showing the four download buttons</div>
+        <div class="step-text">
+          <h3>First launch</h3>
+          <p>Open <b>…</b> → <b>Decky</b> → <b>Japanese Lookup</b>. With Wi-Fi on, press each download button and wait for it to finish before the next:</p>
+          <table>
+            <tr><td>Install lookup runtime</td><td>~60 MB</td></tr>
+            <tr><td>Download dictionary (Jitendex)</td><td>~70 MB</td></tr>
+            <tr><td>Install OCR runtime</td><td>~400 MB</td></tr>
+            <tr><td>Download OCR models</td><td>~22 MB</td></tr>
+          </table>
+          <p>The OCR runtime takes a few minutes. The buttons disappear once everything is in place. Start a game and press <b>L5</b>.</p>
+        </div>
+      </section>
+
+      <div class="stepper-nav">
+        <button class="btn btn-ghost" data-dir="-1">Previous</button>
+        <span class="stepper-count"><span data-current>1</span> / 5</span>
+        <button class="btn" data-dir="1">Next</button>
+      </div>
+    </div>
+
+    <p class="aside">
+      Updating is the same steps with the newer zip — settings, dictionary, and Anki queue are kept.
+      Prefer to build it yourself, or want to change the code? See
+      <a href="https://github.com/scallsen/decky-japanese-lookup#install-from-source">Install from source</a> in the README.
+    </p>
+  </div>
+</section>
+
+<section class="faq" id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+
+    <details>
+      <summary>Does it need internet?</summary>
+      <p>Only for the one-time downloads on first launch, and for exporting to Anki over your local Wi-Fi. Reading and lookup run entirely on the Deck.</p>
+    </details>
+    <details>
+      <summary>Which games does it work with?</summary>
+      <p>Anything with a single text box on screen — visual novels are the target. It doesn't handle dialogue logs or several speakers at once. If a game puts its text somewhere unusual, drag the capture area over it once and the plugin remembers it for that game.</p>
+    </details>
+    <details>
+      <summary>Pressing L5 does nothing.</summary>
+      <p>A game has to be running — captures don't work from the Steam menus. Check the capture area's drop-down is set to L5 and not <em>None</em>. If <b>Advanced settings → Show debug info</b> doesn't say <em>Controller: hooked</em> and <em>PipeWire: ok</em>, restart the Deck.</p>
+    </details>
+    <details>
+      <summary>It says "No text found" or "Accuracy low".</summary>
+      <p>The box probably doesn't sit exactly over the text. Open the plugin with the game's text box on screen, press <b>Change area</b>, and drag the box over it. Very small or stylised fonts can also read poorly.</p>
+    </details>
+    <details>
+      <summary>The QR code won't open on my phone.</summary>
+      <p>Phone and Deck need to be on the same Wi-Fi (not mobile data or a guest network). The link expires after about five minutes — press <b>Export via QR code</b> again for a fresh one.</p>
+    </details>
+    <details>
+      <summary>Japanese Lookup doesn't show up in Decky after installing.</summary>
+      <p>Restart the Deck and check again. Sideloaded zips aren't Decky's officially supported path and can be flaky; if it still won't appear, <a href="https://github.com/scallsen/decky-japanese-lookup#install-from-source">install from source</a> instead.</p>
+    </details>
+    <details>
+      <summary>Can I use Yomitan instead of the built-in lookup?</summary>
+      <p>Yes. Every captured line is also shown on a local page at <code>localhost:8766</code> and copied to the clipboard, so Yomitan in Firefox (Desktop Mode) can pick it up. Details are in the <a href="https://github.com/scallsen/decky-japanese-lookup#optional-yomitan-in-firefox">README</a>.</p>
+    </details>
+    <details>
+      <summary>How much space does it take, and how do I remove it?</summary>
+      <p>About 800 MB once the OCR engine and dictionary are downloaded. <b>Advanced settings → Delete downloaded data</b> frees that space but keeps the plugin. Uninstalling from Decky's plugin list removes everything, including your Anki queue — export it first.</p>
+    </details>
+    <details>
+      <summary>Where does the dictionary data come from?</summary>
+      <p>The plugin ships no dictionary. On first launch it downloads <a href="https://jitendex.org/">Jitendex</a>, which is built from <a href="https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project">JMdict</a> by the EDRDG, Tatoeba example sentences, and JmdictFurigana. Full attribution and licences are in the <a href="https://github.com/scallsen/decky-japanese-lookup#credits--data-sources">README</a>.</p>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div>
+      <a href="https://github.com/scallsen/decky-japanese-lookup">Source on GitHub</a>
+      <a href="https://github.com/scallsen/decky-japanese-lookup/issues">Report a problem</a>
+      <a href="https://github.com/scallsen/decky-japanese-lookup/blob/main/LICENSE">GPL-3.0-or-later</a>
+    </div>
+    <p>
+      Screen capture and the back-button monitor are ported from
+      <a href="https://github.com/cat-in-a-box/Decky-Translator">Decky-Translator</a>.
+      Not affiliated with Valve or Steam Deck Homebrew. Steam and Steam Deck are trademarks of Valve Corporation.
+    </p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
