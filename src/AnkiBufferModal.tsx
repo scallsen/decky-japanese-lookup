@@ -4,7 +4,7 @@
 // anki_export_worker.py's genanki template, respecting which fields are
 // actually configured (a blank field-name setting is skipped there too).
 
-import { DialogButton, ModalRoot } from "@decky/ui";
+import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { FC, useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import { BufferedCard, getAnkiBuffer, removeAnkiBufferCard } from "./api";
@@ -65,18 +65,28 @@ const CardPreview: FC<{
   onRemove: () => void;
   removing: boolean;
 }> = ({ card, roles, onRemove, removing }) => {
+  const [focused, setFocused] = useState(false);
   const front = roles.length ? card[ROLE_CARD_KEY[roles[0]]] : "";
   const backRoles = roles.slice(1).filter((r) => card[ROLE_CARD_KEY[r]]);
 
   return (
-    <div
+    <Focusable
       style={{
         position: "relative",
         border: "1px solid rgba(255,255,255,0.15)",
         borderRadius: 6,
         overflow: "hidden",
-        background: "rgba(255,255,255,0.04)",
+        background: focused ? "rgba(26,159,255,0.12)" : "rgba(255,255,255,0.04)",
+        transition: "background 0.1s",
       }}
+      tabIndex={0}
+      // the card itself is the gamepad-focus/activate target (same pattern
+      // as the dictionary entries) — the X is the touch tap-target and
+      // lights up with the card so it's clear A removes it.
+      onActivate={removing ? undefined : onRemove}
+      onOKActionDescription="Remove from queue"
+      onGamepadFocus={() => setFocused(true)}
+      onGamepadBlur={() => setFocused(false)}
     >
       <DialogButton
         style={{
@@ -88,7 +98,9 @@ const CardPreview: FC<{
           minWidth: 0,
           padding: 0,
           borderRadius: 4,
+          background: focused ? "rgba(26,159,255,0.9)" : undefined,
         }}
+        focusable={false}
         disabled={removing}
         onClick={onRemove}
       >
@@ -133,7 +145,7 @@ const CardPreview: FC<{
           </div>
         </>
       )}
-    </div>
+    </Focusable>
   );
 };
 

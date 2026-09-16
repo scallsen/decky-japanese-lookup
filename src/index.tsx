@@ -10,6 +10,7 @@ import { FaBookOpen } from "react-icons/fa";
 
 import { captureAndMine, getAllSettings, UNKNOWN_APP_KEY, VnlEvent } from "./api";
 import { copyToClipboard } from "./clipboard";
+import { requestFirstWordFocus } from "./firstWordFocus";
 import { TriggerButton, TriggerWatcher } from "./input";
 import { Panel } from "./Panel";
 import { ScanOverlay } from "./ScanOverlay";
@@ -77,6 +78,7 @@ export default definePlugin(() => {
       copyToClipboard(ev.text);
     }
     if (ev.stage === "done") {
+      if (ev.text) requestFirstWordFocus(ev.text);
       // select our plugin in Decky's QAM tab before opening it.
       // deckyState is TS-private but present at runtime; internal API, so
       // fail soft — worst case the QAM opens on the last-used view.

@@ -2,8 +2,8 @@ import {
   ButtonItem,
   ConfirmModal,
   DialogButton,
-  Dropdown,
   Field,
+  Focusable,
   PanelSection,
   PanelSectionRow,
   Router,
@@ -11,6 +11,7 @@ import {
   TextField,
   ToggleField,
 } from "@decky/ui";
+import { addEventListener, removeEventListener } from "@decky/api";
 import { FC, ReactNode, useEffect, useRef, useState } from "react";
 import { FaClone, FaEye, FaGamepad } from "react-icons/fa";
 import {
@@ -27,11 +28,13 @@ import {
   Region,
   setSetting,
   UNKNOWN_APP_KEY,
+  VnlEvent,
 } from "./api";
 import { AnkiBufferModal } from "./AnkiBufferModal";
 import { LookupSection } from "./LookupPanel";
 import { openRegionEditor } from "./RegionEditor";
 import { QrCode } from "./QrCode";
+import { openTriggerButtonMenu, TriggerButtonSelector } from "./TriggerButtonOptions";
 
 interface CaptureArea {
   region: Region;
@@ -42,14 +45,6 @@ interface CaptureProfile {
   display_name: string;
   areas: CaptureArea[];
 }
-
-const TRIGGER_OPTIONS = [
-  { data: "off", label: "None" },
-  { data: "L4", label: "L4" },
-  { data: "R4", label: "R4" },
-  { data: "L5", label: "L5" },
-  { data: "R5", label: "R5" },
-];
 
 // shape for newly-added areas — the default area already covers the usual
 // bottom-third text box, so a second one probably wants more of the screen
@@ -256,9 +251,15 @@ export const Panel: FC = () => {
     void refreshStatus();
     void getAllSettings().then((s) => alive.current && setSettingsState(s));
     const t = setInterval(refreshStatus, 2500);
+    // a finished scan shows up now, not on the next poll
+    const onEvent = (ev: VnlEvent) => {
+      if (ev.stage === "done" || ev.stage === "error") void refreshStatus();
+    };
+    addEventListener<[VnlEvent]>("vnl_event", onEvent);
     return () => {
       alive.current = false;
       clearInterval(t);
+      removeEventListener("vnl_event", onEvent);
     };
   }, []);
 
@@ -397,7 +398,10 @@ export const Panel: FC = () => {
               <AreaThumbnail region={area.region} />
             </PanelSectionRow>
             <PanelSectionRow>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <Focusable
+                style={{ display: "flex", gap: 6, alignItems: "stretch" }}
+                flow-children="row"
+              >
                 <DialogButton
                   style={{
                     flex: "0 1 auto",
@@ -414,12 +418,18 @@ export const Panel: FC = () => {
                 >
                   Change area
                 </DialogButton>
-                <Dropdown
-                  rgOptions={TRIGGER_OPTIONS}
-                  selectedOption={area.button ?? "off"}
-                  onChange={(o) => setAreaButton(i, o.data)}
+                <TriggerButtonSelector
+                  code={area.button}
+                  onOpen={(parent, resetHighlight) =>
+                    openTriggerButtonMenu(
+                      parent,
+                      area.button,
+                      (b) => setAreaButton(i, b ?? "off"),
+                      resetHighlight
+                    )
+                  }
                 />
-              </div>
+              </Focusable>
             </PanelSectionRow>
             {i > 0 && (
               <PanelSectionRow>
