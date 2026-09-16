@@ -40,5 +40,6 @@
   prev.addEventListener('click', function () { show(current - 1); });
   next.addEventListener('click', function () { show(current + 1); });
 
-  show(0);
+  var fromHash = /^#step-(\d)$/.exec(location.hash);
+  show(fromHash ? parseInt(fromHash[1], 10) - 1 : 0);
 })();
