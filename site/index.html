@@ -9,7 +9,7 @@
 <meta property="og:description" content="Read Japanese games on the Steam Deck and mine words into Anki. On-device OCR, offline dictionary, QR export to your phone.">
 <meta property="og:type" content="website">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=dev14">
 <script>document.documentElement.className = 'js';</script>
 </head>
 <body>
@@ -21,10 +21,14 @@
 
 <header class="nav">
   <div class="wrap nav-inner">
-    <a class="wordmark" href="#top">Japanese Lookup <span>for Steam Deck</span></a>
+    <a class="wordmark" href="#top">
+      <img class="wordmark-logo" src="assets/favicon.svg" alt="" width="32" height="32">
+      <span class="wordmark-text">Japanese Lookup <span class="wordmark-sub">for Decky</span></span>
+    </a>
     <nav class="nav-links" aria-label="Site">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
+      <a href="#gallery">Gallery</a>
       <a href="#faq">FAQ</a>
       <a href="https://github.com/scallsen/decky-japanese-lookup">GitHub</a>
       <a class="btn btn-small" href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">Download</a>
@@ -39,47 +43,70 @@
     <div class="deck">
       <img class="deck-outline" src="assets/steamdeck-front.svg" alt="" width="1024" height="414">
       <div class="deck-screen">
-        <div class="shot shot-hero">Screenshot: a visual novel with the Quick Access panel open, the captured line split into words and a definition showing</div>
+        <img src="assets/hero-lookup.png" width="1280" height="800" alt="Japanese Lookup open over a visual novel, showing the captured line split into words with a definition below">
       </div>
     </div>
-    <h1>Read Japanese games on your Steam Deck.</h1>
+    <p class="credit">Celeste — Maddy Makes Games, 2018</p>
+    <h1>Japanese study through games on your Steam Deck</h1>
     <p class="lead">
-      A <a href="https://decky.xyz/">Decky Loader</a> plugin that reads the text box on screen,
-      looks up every word, and sends the ones you want to Anki — all in Gaming Mode, all on the Deck.
+      A plugin for <a href="https://decky.xyz/">Decky Loader</a> that lets you scan and look up
+      Japanese text from your games — all without leaving Gaming Mode.
     </p>
     <div class="cta">
       <a class="btn" href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">Download latest release</a>
       <a class="btn btn-ghost" href="#install">Install guide</a>
     </div>
-    <p class="note">Work in progress. It's a personal project — some flows are rough, and things may change.</p>
   </div>
 </section>
 
 <section class="how" id="how">
   <div class="wrap">
-    <h2>At the press of a button</h2>
+    <h2>How it works</h2>
     <ol class="steps">
       <li>
-        <img class="key" src="assets/l5.svg" alt="L5 back button" width="32" height="32">
-        <h3>Press L5</h3>
-        <p>While a line of Japanese is on screen. A brief outline flashes over the text box.</p>
+        <div class="step-shot"
+             data-desc="Scan the screen: press one of the back buttons to scan text."
+             data-credit="Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014">
+          <img src="assets/howitworks-1-scan.png" alt="Capture area highlighted over Japanese dialogue text">
+        </div>
+        <div class="step-body">
+          <div class="step-head">
+            <span class="num"><img src="assets/icons/lucide-scan-text.svg" alt="" width="18" height="18"></span>
+            <h3><b>1.</b> Scan the screen</h3>
+          </div>
+          <p>Press one of the back buttons to scan text.</p>
+        </div>
       </li>
       <li>
-        <span class="num">2</span>
-        <h3>The text is read on-device</h3>
-        <p>The text box is screenshotted and OCR'd on the Deck itself. No internet needed.</p>
+        <div class="step-shot"
+             data-desc="Review words: scanned text opens up in the side panel."
+             data-credit="Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014">
+          <img src="assets/howitworks-2-lookup.png" alt="Word-by-word lookup panel open beside the game">
+        </div>
+        <div class="step-body">
+          <div class="step-head">
+            <span class="num"><img src="assets/icons/lucide-text-search.svg" alt="" width="18" height="18"></span>
+            <h3><b>2.</b> Review words</h3>
+          </div>
+          <p>Scanned text opens up in the side panel.</p>
+        </div>
       </li>
       <li>
-        <span class="num">3</span>
-        <h3>Move over a word</h3>
-        <p>The Quick Access menu opens with the line split into words. D-pad or tap to see a definition.</p>
-      </li>
-      <li>
-        <span class="num">4</span>
-        <h3>Send words to Anki</h3>
-        <p>Queue the ones you want, then scan a QR code with your phone to import them into AnkiMobile or AnkiDroid.</p>
+        <div class="step-shot"
+             data-desc="Add to Anki: add words to study later in Anki."
+             data-credit="Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014">
+          <img src="assets/howitworks-3-anki.png" alt="QR code export screen for sending cards to Anki">
+        </div>
+        <div class="step-body">
+          <div class="step-head">
+            <span class="num"><img src="assets/icons/lucide-book-plus.svg" alt="" width="18" height="18"></span>
+            <h3><b>3.</b> Add to Anki</h3>
+          </div>
+          <p>Add words to study later in Anki.</p>
+        </div>
       </li>
     </ol>
+    <p class="credit">Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014</p>
   </div>
 </section>
 
@@ -88,28 +115,24 @@
     <h2>Features</h2>
     <ul class="grid">
       <li>
-        <h3>Never leave the game</h3>
-        <p>Lookup happens in the Quick Access menu. Close it with B and keep playing.</p>
+        <span class="feature-icon"><img src="assets/icons/lucide-gamepad-2.svg" alt="" width="22" height="22"></span>
+        <h3>Stay in Gaming Mode</h3>
+        <p>Lookup happens in the sidebar menu. Scan, review, close when done.</p>
       </li>
       <li>
+        <span class="feature-icon"><img src="assets/icons/lucide-wifi-off.svg" alt="" width="22" height="22"></span>
         <h3>Works offline</h3>
         <p>OCR engine and dictionary are downloaded once and stay on the Deck. Nothing is sent anywhere.</p>
       </li>
       <li>
-        <h3>A proper dictionary</h3>
-        <p>Ships with <a href="https://jitendex.org/">Jitendex</a>, built on JMdict. Any Yomitan-format dictionary works too.</p>
+        <span class="feature-icon"><img src="assets/icons/lucide-square-dashed-mouse-pointer.svg" alt="" width="22" height="22"></span>
+        <h3>Capture areas</h3>
+        <p>Drag and create multiple capture areas wherever text appears in-game, and assign a hotkey.</p>
       </li>
       <li>
-        <h3>Anki mining</h3>
-        <p>Cards carry the word, reading, meaning, the full sentence, and the game's name. Export to your phone over Wi-Fi.</p>
-      </li>
-      <li>
-        <h3>Per-game capture area</h3>
-        <p>Drag a box over the text box once; the plugin remembers it for that game.</p>
-      </li>
-      <li>
-        <h3>Your choice of button</h3>
-        <p>L4, R4, L5, or R5. Give a second button its own area — one for the text box, one for the whole screen.</p>
+        <span class="feature-icon"><img src="assets/icons/lucide-qr-code.svg" alt="" width="22" height="22"></span>
+        <h3>Send to Anki</h3>
+        <p>Save words locally while looking them up. Generate a QR code and send to AnkiMobile / AnkiDroid.</p>
       </li>
     </ul>
   </div>
@@ -118,13 +141,7 @@
 <section class="install" id="install">
   <div class="wrap">
     <h2>Install</h2>
-    <p class="lead">No computer needed. About ten minutes on the Deck, plus a few minutes of downloads on first launch.</p>
-
-    <ul class="reqs">
-      <li>A Steam Deck on Wi-Fi</li>
-      <li>About 600 MB free</li>
-      <li>AnkiMobile or AnkiDroid on a phone <em>(only for Anki)</em></li>
-    </ul>
+    <p class="lead">If you already have Decky installed, setup should take less than 10 minutes.</p>
 
     <div class="stepper">
       <div class="stepper-tabs" role="tablist" aria-label="Install steps">
@@ -136,31 +153,30 @@
       </div>
 
       <section class="step" id="step-1" role="tabpanel" aria-labelledby="tab-1">
-        <div class="frames" aria-roledescription="carousel" aria-label="Step 1 screenshots">
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="1 of 3">
-            <div class="shot shot-step">Screenshot: the Power menu with "Switch to Desktop" highlighted</div>
-            <p class="frame-caption">Steam → Power → Switch to Desktop</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="2 of 3">
-            <div class="shot shot-step">Screenshot: Desktop Mode, decky.xyz open in the browser with the download button</div>
-            <p class="frame-caption">Download the installer from decky.xyz</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="3 of 3">
-            <div class="shot shot-step">Screenshot: the Decky installer dialog with "Release" selected</div>
-            <p class="frame-caption">Run it and choose Release</p>
-          </div>
-          <div class="frames-bar">
-            <div class="frames-dots"></div>
-            <button class="frames-toggle" type="button" aria-pressed="false">Pause</button>
+        <div class="frames">
+          <div class="frames-shots">
+            <img class="shot-step active" data-frame="0" data-ping-x="50" data-ping-y="75" src="assets/step1-1-switch-to-desktop.png" alt="The Power menu with &quot;Switch to Desktop&quot; highlighted">
+            <img class="shot-step" data-frame="1" data-ping-x="94" data-ping-y="15" src="assets/step1-2-decky-xyz-download.png" alt="Desktop Mode, decky.xyz open in the browser with the Download button">
+            <img class="shot-step" data-frame="2" data-ping-x="19" data-ping-y="38" src="assets/step1-3-downloads-folder.png" alt="The downloaded installer sitting in the Downloads folder in the file manager">
+            <span class="shot-ping" hidden></span>
           </div>
         </div>
         <div class="step-text">
           <h3>Install Decky Loader</h3>
           <p>Skip this if you already have Decky.</p>
-          <ol>
-            <li>Hold the <b>Steam</b> button → <b>Power</b> → <b>Switch to Desktop</b>.</li>
-            <li>Open a browser, go to <a href="https://decky.xyz/">decky.xyz</a>, download the installer and run it. Choose the <b>release</b> version.</li>
-            <li>Switch back to Gaming Mode when it's done.</li>
+          <ol class="step-list">
+            <li class="active" data-frame="0">
+              <span class="step-num">1</span>
+              <span>Hold the <img class="btn-icon" src="assets/icons/sd_button_steam.svg" alt="Steam"> button → <b>Power</b> → <b>Switch to Desktop</b>.</span>
+            </li>
+            <li data-frame="1">
+              <span class="step-num">2</span>
+              <span>Open a browser, go to <a href="https://decky.xyz/">decky.xyz</a>, and download the installer.</span>
+            </li>
+            <li data-frame="2">
+              <span class="step-num">3</span>
+              <span>Open it from your <b>Downloads</b> folder in the file manager — not the browser's download popup.</span>
+            </li>
           </ol>
         </div>
       </section>
@@ -168,72 +184,69 @@
       <section class="step" id="step-2" role="tabpanel" aria-labelledby="tab-2">
         <div class="frames">
           <div class="frame">
-            <div class="shot shot-step">Screenshot: the GitHub release page on the Deck with the .zip asset highlighted</div>
-            <p class="frame-caption">The .zip under Assets on the release page</p>
+            <img class="shot-step" src="assets/step2-1-release-zip.png" alt="The GitHub release page on the Deck with the .zip asset highlighted">
           </div>
         </div>
         <div class="step-text">
           <h3>Download the plugin zip</h3>
-          <p>On the Deck, open the <a href="https://github.com/scallsen/decky-japanese-lookup/releases/latest">latest release</a> and download <code>vn-lookup-vX.Y.Z.zip</code>. Desktop Mode's browser is easiest, but Gaming Mode's works too.</p>
-          <p>It lands in <code>Downloads</code>.</p>
+          <p>On the Deck, open the <a href="https://github.com/scallsen/japanese-lookup/releases/latest">latest release</a> and download <code>japanese-lookup-vX.Y.Z.zip</code>.</p>
+          <p>The file should go to <code>Downloads</code>, leave it there for now.</p>
         </div>
       </section>
 
       <section class="step" id="step-3" role="tabpanel" aria-labelledby="tab-3">
-        <div class="frames" aria-roledescription="carousel" aria-label="Step 3 screenshots">
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="1 of 3">
-            <div class="shot shot-step">Screenshot: Quick Access open on the Decky tab (plug icon)</div>
-            <p class="frame-caption">Quick Access → Decky tab</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="2 of 3">
-            <div class="shot shot-step">Screenshot: Decky settings with the General tab selected</div>
-            <p class="frame-caption">Gear icon → General</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="3 of 3">
-            <div class="shot shot-step">Screenshot: the Developer Mode toggle at the bottom of General, turned on</div>
-            <p class="frame-caption">Developer Mode on</p>
-          </div>
-          <div class="frames-bar">
-            <div class="frames-dots"></div>
-            <button class="frames-toggle" type="button" aria-pressed="false">Pause</button>
+        <div class="frames">
+          <div class="frames-shots">
+            <img class="shot-step active" data-frame="0" data-ping-x="62" data-ping-y="86" src="assets/step3-1-qam-decky-tab.png" alt="Quick Access open on the Decky tab (plug icon)">
+            <img class="shot-step" data-frame="1" data-ping-x="96" data-ping-y="14" src="assets/step3-1-qam-decky-tab.png" alt="Quick Access open on the Decky tab, gear icon top right">
+            <img class="shot-step" data-frame="2" data-ping-x="93" data-ping-y="61" src="assets/step3-3-developer-mode-on.png" alt="The Developer Mode toggle at the bottom of General, turned on">
+            <span class="shot-ping" hidden></span>
           </div>
         </div>
         <div class="step-text">
           <h3>Turn on Developer Mode</h3>
           <p>The plugin isn't on the Decky store, so it's installed from the zip.</p>
-          <ol>
-            <li>Press <b>…</b> (Quick Access) → the <b>Decky</b> tab (plug icon).</li>
-            <li>Press the gear icon → <b>General</b>.</li>
-            <li>Turn on <b>Developer Mode</b> at the bottom.</li>
+          <ol class="step-list">
+            <li class="active" data-frame="0">
+              <span class="step-num">1</span>
+              <span>Press <img class="btn-icon" src="assets/icons/sd_button_aux.svg" alt="Quick Access (…)"> → the <b>Decky</b> tab (plug icon).</span>
+            </li>
+            <li data-frame="1">
+              <span class="step-num">2</span>
+              <span>Press the gear icon → <b>General</b>.</span>
+            </li>
+            <li data-frame="2">
+              <span class="step-num">3</span>
+              <span>Turn on <b>Developer Mode</b> at the bottom.</span>
+            </li>
           </ol>
         </div>
       </section>
 
       <section class="step" id="step-4" role="tabpanel" aria-labelledby="tab-4">
-        <div class="frames" aria-roledescription="carousel" aria-label="Step 4 screenshots">
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="1 of 3">
-            <div class="shot shot-step">Screenshot: the Developer tab in Decky settings with "Install from zip"</div>
-            <p class="frame-caption">Developer tab → Install from zip</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="2 of 3">
-            <div class="shot shot-step">Screenshot: the file browser open on Downloads with the .zip selected</div>
-            <p class="frame-caption">Pick the .zip from Downloads</p>
-          </div>
-          <div class="frame" role="group" aria-roledescription="slide" aria-label="3 of 3">
-            <div class="shot shot-step">Screenshot: the Decky tab listing Japanese Lookup</div>
-            <p class="frame-caption">Japanese Lookup in the Decky tab</p>
-          </div>
-          <div class="frames-bar">
-            <div class="frames-dots"></div>
-            <button class="frames-toggle" type="button" aria-pressed="false">Pause</button>
+        <div class="frames">
+          <div class="frames-shots">
+            <img class="shot-step active" data-frame="0" data-ping-x="4" data-ping-y="27" src="assets/step4-1-developer-tab.png" alt="The Developer tab in Decky settings with &quot;Install Plugin from ZIP File&quot;">
+            <img class="shot-step" data-frame="1" src="assets/step4-2-downloads-zip-selected.png" alt="The in-app file browser open on Downloads with the plugin .zip">
+            <img class="shot-step" data-frame="2" src="assets/step4-3-decky-tab-japanese-lookup.png" alt="The Decky tab listing Japanese Lookup after install">
+            <span class="shot-ping" hidden></span>
           </div>
         </div>
         <div class="step-text">
           <h3>Install from zip</h3>
-          <ol>
-            <li>A new <b>Developer</b> tab appears in Decky settings. Open it.</li>
-            <li>Press <b>Install from zip</b>, browse to <code>Downloads</code>, and select the file.</li>
-            <li>Wait for it to finish, then check the <b>Decky</b> tab for <b>Japanese Lookup</b>.</li>
+          <ol class="step-list">
+            <li class="active" data-frame="0">
+              <span class="step-num">1</span>
+              <span>Open the <b>Developer</b> tab in Decky settings (Developer mode must be enabled).</span>
+            </li>
+            <li data-frame="1">
+              <span class="step-num">2</span>
+              <span>Press <b>Install from zip</b>, browse to <code>Downloads</code> (or wherever you placed the ZIP), and select the file.</span>
+            </li>
+            <li data-frame="2">
+              <span class="step-num">3</span>
+              <span>Wait for it to finish, then check the <b>Decky</b> tab for <b>Japanese Lookup</b>.</span>
+            </li>
           </ol>
           <p>If it doesn't show up right away, restart the Deck.</p>
         </div>
@@ -242,26 +255,24 @@
       <section class="step" id="step-5" role="tabpanel" aria-labelledby="tab-5">
         <div class="frames">
           <div class="frame">
-            <div class="shot shot-step">Screenshot: the plugin's panel on first open, showing the four download buttons</div>
-            <p class="frame-caption">The one-time download buttons</p>
+            <img class="shot-step" src="assets/step5-1-first-launch-buttons.png" alt="The Japanese Lookup panel on first open, showing the one-time setup buttons">
           </div>
         </div>
         <div class="step-text">
           <h3>First launch</h3>
-          <p>Open <b>…</b> → <b>Decky</b> → <b>Japanese Lookup</b>. With Wi-Fi on, press each download button and wait for it to finish before the next:</p>
+          <p>Open <img class="btn-icon" src="assets/icons/sd_button_aux.svg" alt="Quick Access (…)"> → <b>Decky</b> → <b>Japanese Lookup</b>. With Wi-Fi on, press each download button and wait for it to finish before the next — they appear one at a time as each step completes:</p>
           <table>
             <tr><td>Install lookup runtime</td><td>~60 MB</td></tr>
             <tr><td>Download dictionary (Jitendex)</td><td>~70 MB</td></tr>
             <tr><td>Install OCR runtime</td><td>~400 MB</td></tr>
             <tr><td>Download OCR models</td><td>~22 MB</td></tr>
           </table>
-          <p>The OCR runtime takes a few minutes. The buttons disappear once everything is in place. Start a game and press <b>L5</b>.</p>
+          <p>The OCR runtime takes a few minutes. The buttons disappear once everything is in place. Start a game and press <img class="btn-icon" src="assets/l5.svg" alt="L5"></p>
         </div>
       </section>
 
       <div class="stepper-nav">
         <button class="btn btn-ghost" data-dir="-1">Previous</button>
-        <span class="stepper-count"><span data-current>1</span> / 5</span>
         <button class="btn" data-dir="1">Next</button>
       </div>
     </div>
@@ -271,6 +282,44 @@
       Prefer to build it yourself, or want to change the code? See
       <a href="https://github.com/scallsen/decky-japanese-lookup#install-from-source">Install from source</a> in the README.
     </p>
+  </div>
+</section>
+
+<section class="gallery" id="gallery">
+  <div class="wrap">
+    <h2>Gallery</h2>
+    <ul class="gallery-grid">
+      <li class="step-shot"
+          data-desc="Tap and drag in a visual UI to create a capture area."
+          data-credit="Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014">
+        <img src="assets/gallery-capture-area.png" alt="Dragging a capture area over a courtroom dialogue box in Ace Attorney">
+      </li>
+      <li class="step-shot"
+          data-desc="You can create multiple capture areas and assign a hotkey to them. Capture areas are saved per game."
+          data-credit="Celeste — Maddy Makes Games, 2018">
+        <img src="assets/gallery-per-game-areas.png" alt="The Capture Area panel showing a saved area for Celeste">
+      </li>
+      <li class="step-shot"
+          data-desc="Dictionary definitions are deconstructed from conjugated forms, and have been simplified from the original definitions."
+          data-credit="Little Witch Academia: Chamber of Time — NIS America, 2018">
+        <img src="assets/gallery-witch-academia.png" alt="Japanese Lookup open over Little Witch Academia: Chamber of Time, with its own saved capture area">
+      </li>
+      <li class="step-shot"
+          data-desc="The local OCR model can accurately identify long and complex sentences."
+          data-credit="Steins;Gate — 5pb./Nitroplus, 2009">
+        <img src="assets/gallery-long-sentence.png" alt="Japanese Lookup splitting a long multi-line sentence into words in Steins;Gate, with a definition below">
+      </li>
+      <li class="step-shot"
+          data-desc="Generate a QR code to send cards to Anki (must be on the same Wifi). Cards are pre-styled and ready for drilling."
+          data-credit="Phoenix Wright: Ace Attorney Trilogy — Capcom, 2014">
+        <img src="assets/gallery-anki-qr.png" alt="The Deck showing an Export via QR code screen next to a phone with the card already imported into Anki">
+      </li>
+      <li class="gallery-video"
+          data-desc="The entire UI loads in the sidebar menu – no need to exit gaming mode!"
+          data-credit="Ace Attorney Investigations: Miles Edgeworth — Capcom, 2009">
+        <video src="assets/gallery-scan-demo.mp4" poster="assets/gallery-scan-demo-poster.jpg" autoplay muted loop playsinline aria-label="Demo: pressing the back button to scan and look up a line in Ace Attorney"></video>
+      </li>
+    </ul>
   </div>
 </section>
 
@@ -321,12 +370,8 @@
 
 <footer class="footer">
   <div class="wrap footer-inner">
-    <div>
-      <a href="https://github.com/scallsen/decky-japanese-lookup">Source on GitHub</a>
-      <a href="https://github.com/scallsen/decky-japanese-lookup/issues">Report a problem</a>
-      <a href="https://github.com/scallsen/decky-japanese-lookup/blob/main/LICENSE">GPL-3.0-or-later</a>
-    </div>
-    <p>
+    <p>Developed by <a href="https://scallsen.ca">Simon Callsen</a> &middot; <a href="https://github.com/scallsen/decky-japanese-lookup">GitHub</a></p>
+    <p class="credit">
       Screen capture and the back-button monitor are ported from
       <a href="https://github.com/cat-in-a-box/Decky-Translator">Decky-Translator</a>.
       Not affiliated with Valve or Steam Deck Homebrew. Steam and Steam Deck are trademarks of Valve Corporation.
@@ -334,6 +379,16 @@
   </div>
 </footer>
 
-<script src="script.js"></script>
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <button class="lightbox-close" type="button" aria-label="Close preview">&times;</button>
+  <button class="lightbox-nav lightbox-prev" type="button" aria-label="Previous image">&#8249;</button>
+  <button class="lightbox-nav lightbox-next" type="button" aria-label="Next image">&#8250;</button>
+  <img id="lightbox-img" src="" alt="">
+  <video id="lightbox-video" controls playsinline hidden></video>
+  <p class="lightbox-description" id="lightbox-description" hidden></p>
+  <p class="lightbox-caption" id="lightbox-caption"></p>
+</div>
+
+<script src="script.js?v=dev6"></script>
 </body>
 </html>
