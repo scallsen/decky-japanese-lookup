@@ -11,6 +11,7 @@ import {
   Router,
 } from "@decky/ui";
 import { FC, useEffect, useRef, useState } from "react";
+import { FaMinus, FaPlus } from "react-icons/fa";
 import {
   createAnkiCard,
   DictEntry,
@@ -19,6 +20,7 @@ import {
   installLookupRuntime,
   LookupStatus,
   lookupWord,
+  removeAnkiBufferCard,
   Token,
   tokenizeLine,
 } from "./api";
@@ -67,8 +69,13 @@ export const LookupSection: FC<{
   const [tokens, setTokens] = useState<Token[]>([]);
   const [sel, setSel] = useState<[number, number] | null>(null); // token index range
   const [focused, setFocused] = useState<number | null>(null);
+  const [focusedEntry, setFocusedEntry] = useState<number | null>(null);
   const [entries, setEntries] = useState<DictEntry[] | null>(null);
   const [message, setMessage] = useState("");
+  // expression|reading -> buffered card id, for words added this session
+  // (lets the +/- icon reflect current queue membership without refetching
+  // the whole buffer)
+  const [queued, setQueued] = useState<Record<string, string>>({});
   const alive = useRef(true);
   const tokenizedFor = useRef<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,7 +164,8 @@ export const LookupSection: FC<{
   };
 
   // A-press/tap moves focus into the definition once it renders (Steam's
-  // gamepad focus follows DOM focus); hover-lookups must not steal focus.
+  // gamepad focus follows DOM focus) and scrolls it into view — hover-only
+  // lookups must not steal focus or jump the scroll while just browsing.
   useEffect(() => {
     if (!wantFocusMove.current || !entries?.length) return;
     wantFocusMove.current = false;
@@ -165,6 +173,7 @@ export const LookupSection: FC<{
       entriesRef.current
         ?.querySelector<HTMLElement>("[tabindex], button")
         ?.focus();
+      entriesRef.current?.scrollIntoView({ block: "start" });
     }, 50);
     return () => clearTimeout(t);
   }, [entries]);
@@ -208,11 +217,32 @@ export const LookupSection: FC<{
   const doLookupRef = useRef(doLookup);
   doLookupRef.current = doLookup;
 
-  const addCard = async (e: DictEntry) => {
+  const entryKey = (e: DictEntry) => `${e.expression}|${e.reading}`;
+
+  // same action the +/- icon performs — the entry Focusable's onActivate
+  // calls this directly so a controller can add/remove without ever
+  // targeting the icon itself.
+  const toggleCard = async (e: DictEntry) => {
+    const key = entryKey(e);
+    const bufferedId = queued[key];
+    if (bufferedId) {
+      setMessage("Removing…");
+      const r = await removeAnkiBufferCard(bufferedId);
+      if (r.ok) {
+        setQueued((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+      setMessage(r.ok ? `✓ Removed ${e.expression} from Anki queue` : "✗ failed to remove");
+      return;
+    }
     setMessage("Adding…");
     const game = Router.MainRunningApp?.display_name ?? "";
     const r = await createAnkiCard(
       e.expression, e.reading, e.glosses, sentence ?? "", game, e.word_type);
+    if (r.ok && r.id) setQueued((prev) => ({ ...prev, [key]: r.id! }));
     setMessage(r.ok ? `✓ Added ${e.expression} to Anki queue` : `✗ ${r.error}`);
   };
 
@@ -413,7 +443,10 @@ export const LookupSection: FC<{
             )}
 
             <div ref={entriesRef}>
-            {(entries ?? []).map((e, i) => (
+            {(entries ?? []).map((e, i) => {
+              const isEntryFocused = focusedEntry === i;
+              const isQueued = ankiEnabled && !!queued[entryKey(e)];
+              return (
               <PanelSectionRow key={i}>
                 <Focusable
                   style={{
@@ -422,15 +455,30 @@ export const LookupSection: FC<{
                     gap: 4,
                     padding: "6px 2px",
                     borderTop: i > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                    background: isEntryFocused
+                      ? "rgba(26,159,255,0.12)"
+                      : "transparent",
+                    transition: "background 0.1s",
                   }}
                   tabIndex={0}
-                  onActivate={ankiEnabled ? () => void addCard(e) : undefined}
-                  onOKActionDescription={ankiEnabled ? "Add to Anki queue" : undefined}
+                  // landing on an entry and D-pad-down to the next one both
+                  // work whether or not Anki is enabled — when it's off,
+                  // A still "activates" the row (a no-op) rather than doing
+                  // nothing, so browsing the list behaves consistently and
+                  // still gets Steam's own button-press feedback.
+                  onActivate={ankiEnabled ? () => void toggleCard(e) : () => {}}
+                  onOKActionDescription={ankiEnabled
+                    ? (isQueued ? "Remove from Anki queue" : "Add to Anki queue")
+                    : undefined}
+                  onGamepadFocus={() => setFocusedEntry(i)}
+                  onGamepadBlur={() => setFocusedEntry((cur) => (cur === i ? null : cur))}
                 >
                   {/* the entry itself is the gamepad-focus/scroll-into-view
-                      target (tabIndex here, not just on the +Anki button) so
+                      target (tabIndex here, not just on the +/-Anki icon) so
                       landing on an entry and D-pad-down to the next one both
-                      work even when Anki is disabled and no button renders */}
+                      work even when Anki is disabled and no icon renders.
+                      The icon below is the touch tap-target and also lights
+                      up with the row so it's clear A toggles the card. */}
                   <div
                     style={{
                       display: "flex",
@@ -467,16 +515,22 @@ export const LookupSection: FC<{
                     {ankiEnabled && (
                       <DialogButton
                         style={{
-                          width: "fit-content",
+                          width: 32,
+                          height: 32,
                           minWidth: 0,
-                          padding: "4px 10px",
-                          fontSize: 13,
+                          padding: 0,
                           flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: isEntryFocused
+                            ? "rgba(26,159,255,0.9)"
+                            : undefined,
                         }}
                         focusable={false}
-                        onClick={() => void addCard(e)}
+                        onClick={() => void toggleCard(e)}
                       >
-                        + Anki
+                        {isQueued ? <FaMinus size={12} /> : <FaPlus size={12} />}
                       </DialogButton>
                     )}
                   </div>
@@ -503,7 +557,8 @@ export const LookupSection: FC<{
                   )}
                 </Focusable>
               </PanelSectionRow>
-            ))}
+              );
+            })}
             </div>
           </>
         )}

@@ -97,7 +97,7 @@ export const createAnkiCard = callable<
     game: string,
     wordType: string,
   ],
-  { ok: boolean; buffered?: number; error?: string }
+  { ok: boolean; buffered?: number; id?: string; error?: string }
 >("create_anki_card");
 export const clearAnkiBuffer = callable<[], { ok: boolean }>("clear_anki_buffer");
 export const installAnkiExportRuntime = callable<[], { started: boolean }>("install_anki_export_runtime");

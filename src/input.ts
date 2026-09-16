@@ -5,7 +5,14 @@
 
 import { getButtonState } from "./api";
 
-export type TriggerButton = "L4" | "R4" | "L5" | "R5";
+export type TriggerButton =
+  | "L1" | "L2" | "L3" | "L4" | "L5"
+  | "R1" | "R2" | "R3" | "R4" | "R5";
+
+export const TRIGGER_BUTTONS: TriggerButton[] = [
+  "L1", "L2", "L3", "L4", "L5",
+  "R1", "R2", "R3", "R4", "R5",
+];
 
 const POLL_MS = 100;
 // minimum gap between two captures, across all buttons

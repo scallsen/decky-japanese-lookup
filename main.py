@@ -429,8 +429,8 @@ class Plugin:
         """Buffer a card for later batch export as a .apkg via QR code."""
         if not self.settings.get("anki_enabled"):
             return {"ok": False, "error": "Anki integration is disabled in settings"}
-        self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
-        return {"ok": True, "buffered": self.anki_buffer.count()}
+        card = self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
+        return {"ok": True, "buffered": self.anki_buffer.count(), "id": card["id"]}
 
     async def clear_anki_buffer(self):
         self.anki_buffer.clear()
