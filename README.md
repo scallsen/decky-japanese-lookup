@@ -406,10 +406,9 @@ Please include it if you open an issue.
 ## Optional: Yomitan in Firefox
 
 If you prefer [Yomitan](https://github.com/yomidevs/yomitan) (for example to
-use your own dictionaries or send cards straight to a desktop Anki), the
-plugin also shows every captured line on a local page at
-`http://localhost:8766/` and copies it to the clipboard. **You don't need any
-of this for the built-in lookup.**
+use your own dictionaries), the plugin also shows every captured line on a
+local page at `http://localhost:8766/` and copies it to the clipboard.
+**You don't need any of this for the built-in lookup.**
 
 Requires **SteamOS 3.7.14 or newer** for the clipboard to reach Firefox.
 
@@ -421,14 +420,6 @@ Requires **SteamOS 3.7.14 or newer** for the clipboard to reach Firefox.
 3. In Yomitan's settings, under **Clipboard**, turn on both clipboard monitoring
    options.
 4. Set Firefox's homepage to `http://localhost:8766/`.
-5. *(For Anki cards via Yomitan)* Install desktop Anki
-   (`flatpak install -y flathub net.ankiweb.Anki`), add it as a non-Steam game
-   with launch options
-   `run --env=LC_ALL=C.UTF-8 --branch=stable --arch=x86_64 --command=anki --file-forwarding net.ankiweb.Anki @@ @@`
-   (the `LC_ALL` part is required, or Anki crashes), install the
-   [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on
-   (code `2055492159`), and point Yomitan's **Anki** settings at
-   `http://127.0.0.1:8765`.
 
 Then: press L5 in-game, switch to Firefox, and hover the line to look it up.
 
@@ -490,9 +481,7 @@ The dictionary format is [Yomitan](https://github.com/yomidevs/yomitan)'s.
 for OCR; [fugashi](https://github.com/polm/fugashi) +
 [unidic-lite](https://github.com/polm/unidic-lite) for splitting sentences
 into words; [genanki](https://github.com/kerrickstaley/genanki) (MIT) for
-building the exported Anki deck. The optional Yomitan setup additionally uses
-[AnkiConnect](https://github.com/FooSoft/anki-connect), installed as an Anki
-add-on rather than by the plugin.
+building the exported Anki deck.
 
 ---
 
