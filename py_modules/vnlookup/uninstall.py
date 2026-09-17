@@ -34,18 +34,19 @@ KEEP_ON_DATA_DELETE = frozenset({"anki_buffer.json"})
 POLL_S = 0.5
 # Continuous absence this long means uninstall. This plugin isn't on the
 # Decky store, so "update" in practice means a human manually re-running
-# Install from zip — navigating Decky's menus and a file picker between the
-# old copy disappearing and the new one landing, easily well past a few
-# seconds. 15s was calibrated for a store-style atomic swap and measurably
-# too short: it mistook a real (slow) reinstall for an uninstall and
-# deleted live data mid-install. A full minute comfortably covers a human
-# doing this by hand.
-GONE_CONFIRM_S = 60.0
+# Install from zip. 15s was calibrated for a store-style atomic swap and
+# measurably too short: it mistook a real reinstall for an uninstall and
+# deleted live data mid-install. A real reinstall on a Deck measures ~5s
+# end to end (old copy gone -> new copy loaded); 30s gives a comfortable
+# 6x margin over that without leaving data exposed to the reboot-during-
+# the-window edge case (a real reboot/shutdown kills the detached watcher
+# before it can act) any longer than it needs to.
+GONE_CONFIRM_S = 30.0
 # Never seeing the plugin gone within this long means either a reinstall
 # that's taking unusually long, or an uninstall that failed — keep the
 # data in both cases (silently keeping data too long is recoverable via
 # "Delete downloaded data"; wrongly deleting it isn't).
-MAX_WAIT_S = 300.0
+MAX_WAIT_S = 150.0
 
 # Filled in lazily by spawn_uninstall_cleanup(), never referenced at module
 # scope (this file's own source is also exec()'d verbatim in the detached
