@@ -47,11 +47,12 @@ b { color: var(--heading); font-weight: 600; }
   border-bottom: 1px solid var(--line);
 }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 16px; }
-.wordmark { display: flex; align-items: center; gap: 12px; color: var(--heading); font-weight: 600; white-space: nowrap; }
+.wordmark { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--heading); font-weight: 600; }
 .wordmark-logo { display: block; width: 28px; height: 28px; flex-shrink: 0; }
+.wordmark-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wordmark-sub { color: var(--muted); font-weight: 400; }
 .wordmark:hover { text-decoration: none; }
-.nav-links { display: flex; align-items: center; gap: 20px; }
+.nav-links { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 .nav-links a { color: var(--text); }
 .nav-links a:hover { color: var(--heading); text-decoration: none; }
 
@@ -334,7 +335,8 @@ html:not(.js) .step + .step { border-top: 1px solid var(--line); }
   h1 { font-size: 1.75rem; }
   section { padding: 48px 0; }
   .nav-links { gap: 14px; font-size: 0.9375rem; }
-  .nav-links a:not(.btn):nth-child(-n+3) { display: none; }
+  .nav-links a:not(.btn):nth-child(-n+5) { display: none; }
+  .wordmark-sub { display: none; }
   .steps, .grid { grid-template-columns: 1fr; }
   .gallery-grid { grid-template-columns: 1fr; }
   .deck-outline { display: none; }
