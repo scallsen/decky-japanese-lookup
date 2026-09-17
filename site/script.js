@@ -90,6 +90,52 @@
 })();
 
 (function () {
+  var triggers = Array.prototype.slice.call(document.querySelectorAll('.js-download-latest'));
+  var modal = document.getElementById('download-modal');
+  if (!triggers.length || !modal) return;
+
+  var assetUrl = null;
+  var assetPromise = fetch('https://api.github.com/repos/scallsen/japanese-lookup/releases/latest')
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (data) {
+      var asset = data && (data.assets || []).filter(function (a) { return /\.zip$/i.test(a.name); })[0];
+      assetUrl = asset ? asset.browser_download_url : null;
+      return assetUrl;
+    })
+    .catch(function () { return null; });
+
+  function openModal() {
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal() {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  triggers.forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      assetPromise.then(function (url) {
+        window.location.href = url || link.href;
+        if (url) openModal();
+      });
+    });
+  });
+
+  modal.querySelector('.modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  });
+  modal.querySelector('.modal-cta').addEventListener('click', function () {
+    closeModal();
+    location.hash = this.dataset.goto;
+  });
+})();
+
+(function () {
   if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.querySelectorAll('.gallery-video video').forEach(function (video) {
     video.removeAttribute('autoplay');
