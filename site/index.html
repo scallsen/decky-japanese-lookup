@@ -17,7 +17,7 @@
 <meta name="twitter:description" content="Read Japanese games on the Steam Deck and mine words into Anki. On-device OCR, offline dictionary, QR export to your phone.">
 <meta name="twitter:image" content="https://scallsen.github.io/japanese-lookup/assets/og-image.png">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="styles.css?v=dev15">
+<link rel="stylesheet" href="styles.css?v=dev18">
 <script>document.documentElement.className = 'js';</script>
 </head>
 <body>
@@ -197,7 +197,8 @@
         </div>
         <div class="step-text">
           <h3>Download the plugin zip</h3>
-          <p>On the Deck, open the <a href="https://github.com/scallsen/japanese-lookup/releases/latest">latest release</a> and download <code>japanese-lookup-vX.Y.Z.zip</code>.</p>
+          <p>On the Deck, open the <a href="https://github.com/scallsen/japanese-lookup/releases/latest">latest release</a> on GitHub and download <code>japanese-lookup-vX.Y.Z.zip</code>, or click the Download button on this page to get the latest version.</p>
+          <a class="btn btn-ghost js-download-latest" data-no-modal href="https://github.com/scallsen/japanese-lookup/releases/latest">Download latest version</a>
           <p>The file should go to <code>Downloads</code>, leave it there for now.</p>
         </div>
       </section>
@@ -405,13 +406,13 @@
 <div class="modal" id="download-modal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="download-modal-title">
     <button class="modal-close" type="button" aria-label="Close">&times;</button>
-    <img class="modal-shot" src="assets/step4-1-developer-tab.png" alt="The Developer tab in Decky settings with &quot;Install Plugin from ZIP File&quot;">
+    <img class="modal-shot" src="assets/return-to-gaming-mode.svg" alt="">
     <h3 id="download-modal-title">Your download has started</h3>
-    <p>On the Deck, open <b>Decky</b> &rarr; the <b>Developer</b> tab, then use <b>Install from zip</b> to finish setup.</p>
-    <button class="btn modal-cta" type="button" data-goto="#step-4">Installation guide</button>
+    <p>On your Steam Deck, return to Gaming Mode to install.</p>
+    <button class="btn modal-cta" type="button" data-goto="#step-4">View installation guide</button>
   </div>
 </div>
 
-<script src="script.js?v=dev8"></script>
+<script src="script.js?v=dev10"></script>
 </body>
 </html>

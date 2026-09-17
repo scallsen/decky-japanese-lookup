@@ -81,7 +81,7 @@
     var match = /^#step-(\d)$/.exec(location.hash);
     if (!match) return;
     show(parseInt(match[1], 10) - 1);
-    panels[current].scrollIntoView({ block: 'start' });
+    document.getElementById('install').scrollIntoView({ block: 'start' });
   }
 
   var fromHash = /^#step-(\d)$/.exec(location.hash);
@@ -119,7 +119,7 @@
       e.preventDefault();
       assetPromise.then(function (url) {
         window.location.href = url || link.href;
-        if (url) openModal();
+        if (url && !link.hasAttribute('data-no-modal')) openModal();
       });
     });
   });
