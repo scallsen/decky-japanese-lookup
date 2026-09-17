@@ -77,8 +77,16 @@
   prev.addEventListener('click', function () { show(current - 1); });
   next.addEventListener('click', function () { show(current + 1); });
 
+  function openFromHash() {
+    var match = /^#step-(\d)$/.exec(location.hash);
+    if (!match) return;
+    show(parseInt(match[1], 10) - 1);
+    panels[current].scrollIntoView({ block: 'start' });
+  }
+
   var fromHash = /^#step-(\d)$/.exec(location.hash);
   show(fromHash ? parseInt(fromHash[1], 10) - 1 : 0);
+  window.addEventListener('hashchange', openFromHash);
 })();
 
 (function () {
