@@ -7,7 +7,7 @@
 A [Decky Loader](https://decky.xyz/) plugin for reading Japanese visual novels
 (or any game with text boxes) without leaving gaming mode:
 
-1. **Press a back button** (L5 by default) while a line of Japanese is on screen.
+1. **Press a back button** (<picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/cutout/sd_l5.svg"><img height="16" alt="L5" src="assets/icons/dark/sd_l5.svg"></picture> by default) while a line of Japanese is on screen.
 2. The plugin screenshots the text box, **reads the text on-device** (OCR — no
    internet needed), and opens the side menu with the line split into words.
 3. **Move over a word** to see its dictionary definition.
@@ -23,7 +23,7 @@ on the Deck itself.
 
 - [What you need](#what-you-need)
 - [Quick install (no computer needed)](#quick-install-no-computer-needed)
-- [Install from source](#install-from-source) — one-time, about 20–30 minutes
+- [Install from source](#user-content-install-from-source) — one-time, about 20–30 minutes
 - [First launch on the Deck](#first-launch-on-the-deck)
 - [Everyday use](#everyday-use)
 - [Updating](#updating)
@@ -49,20 +49,21 @@ on the Deck itself.
 
 ## Quick install (no computer needed)
 
-Every [release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
-includes a ready-to-use `vn-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH required.
-This uses Decky's own zip-sideloading, the same mechanism other unlisted
-plugins use since this one isn't on the Decky store.
+Every [release](https://github.com/scallsen/japanese-lookup/releases/latest)
+includes a ready-to-use `japanese-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH
+required. This uses Decky's own zip-sideloading, the same mechanism other
+unlisted plugins use since this one isn't on the Decky store.
 
 1. **Install [Decky Loader](https://decky.xyz/)** first, if you haven't
    already — it's the plugin loader this plugin runs on top of. In Desktop
-   Mode (**Steam button → Power → Switch to Desktop**), open a browser, go
-   to [decky.xyz](https://decky.xyz/), download the installer, and run it
-   (choose the *release* version). Switch back to Gaming Mode when it's done.
+   Mode (hold <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/cutout/sd_button_steam.svg"><img height="16" alt="Steam" src="assets/icons/dark/sd_button_steam.svg"></picture> → **Power** → **Switch to Desktop**), open a
+   browser, go to [decky.xyz](https://decky.xyz/), download the installer,
+   and run it (choose the *release* version). Switch back to Gaming Mode when
+   it's done.
 2. On the Deck, download the zip from the
-   [latest release](https://github.com/scallsen/decky-japanese-lookup/releases/latest)
+   [latest release](https://github.com/scallsen/japanese-lookup/releases/latest)
    (Desktop Mode's browser is easiest, but Gaming Mode's works too).
-3. Open Quick Access (**…**) → the **Decky** tab (plug icon) → the gear icon
+3. Open Quick Access <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/cutout/sd_button_aux.svg"><img height="16" alt="Quick Access" src="assets/icons/dark/sd_button_aux.svg"></picture> → the **Decky** tab (plug icon) → the gear icon
    → **General**, and turn on **Developer Mode** at the bottom.
 4. A new **Developer** tab appears. Open it → **Install from zip** → browse
    to the file you downloaded (usually in `Downloads`) → select it.
@@ -78,11 +79,14 @@ queue.
 
 Sideloaded zips aren't Decky's officially supported install path and can be
 flakier than the store, so if step 4 hangs or the plugin never appears, fall
-back to [installing from source](#install-from-source) below.
+back to [installing from source](#user-content-install-from-source) below.
 
 ---
 
-## Install from source
+<a id="install-from-source"></a>
+
+<details>
+<summary><h2>Install from source</h2></summary>
 
 Building it yourself also works, and is the only option if you want to
 change the code. You build the plugin from this repository and a script
@@ -163,8 +167,8 @@ npm install -g pnpm
 Then download this repository and install its dependencies:
 
 ```bash
-git clone https://github.com/scallsen/decky-japanese-lookup.git
-cd decky-japanese-lookup
+git clone https://github.com/scallsen/japanese-lookup.git
+cd japanese-lookup
 pnpm install
 ```
 
@@ -196,11 +200,13 @@ stays on your computer.
 This builds the plugin, copies it to the Deck, and restarts Decky. It should
 end with `==> Done.` Run the same command again any time you want to reinstall.
 
+</details>
+
 ---
 
 ## First launch on the Deck
 
-Back in gaming mode, press the **`…` (Quick Access) button**, open the
+Back in gaming mode, press <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/cutout/sd_button_aux.svg"><img height="16" alt="Quick Access" src="assets/icons/dark/sd_button_aux.svg"></picture> (Quick Access), open the
 **Decky** tab (the plug icon), and select **Japanese Lookup**.
 
 The first time, the panel shows a few one-time download buttons. Make sure
@@ -301,7 +307,7 @@ Delete all capture areas**.
 
 ## Updating
 
-On your computer, from the `decky-japanese-lookup` folder:
+On your computer, from the `japanese-lookup` folder:
 
 ```bash
 git pull
