@@ -717,7 +717,7 @@ export const Panel: FC = () => {
       <PanelSection title="About / sources">
         <PanelSectionRow>
           <div style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
-            Japanese Lookup is GPL-3.0-or-later; capture, controller-hook, and
+            Japanese Lookup v{status?.version ?? "?"} — GPL-3.0-or-later; capture, controller-hook, and
             overlay code are ported from Decky-Translator (cat-in-a-box).
             The built-in dictionary downloads Jitendex (jitendex.org, CC
             BY-SA 4.0), built from JMdict/EDICT by the Electronic Dictionary
