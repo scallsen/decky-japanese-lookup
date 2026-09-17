@@ -47,7 +47,7 @@
       </div>
     </div>
     <p class="credit">Celeste — Maddy Makes Games, 2018</p>
-    <h1>Japanese study through games on your Steam Deck</h1>
+    <h1>Japanese study on the Steam Deck</h1>
     <p class="lead">
       A plugin for <a href="https://decky.xyz/">Decky Loader</a> that lets you scan and look up
       Japanese text from your games — all without leaving Gaming Mode.
@@ -329,35 +329,35 @@
 
     <details>
       <summary>Does it need internet?</summary>
-      <p>Only for the one-time downloads on first launch, and for exporting to Anki over your local Wi-Fi. Reading and lookup run entirely on the Deck.</p>
+      <p>Only for the one-time downloads on first launch, then it works fully offline.</p>
     </details>
     <details>
       <summary>Which games does it work with?</summary>
-      <p>Anything with a single text box on screen — visual novels are the target. It doesn't handle dialogue logs or several speakers at once. If a game puts its text somewhere unusual, drag the capture area over it once and the plugin remembers it for that game.</p>
+      <p>While the OCR can transcribe any text, it works best for games with dialog boxes. You can create multiple capture areas if text appears in different locations.</p>
     </details>
     <details>
-      <summary>Pressing L5 does nothing.</summary>
-      <p>A game has to be running — captures don't work from the Steam menus. Check the capture area's drop-down is set to L5 and not <em>None</em>. If <b>Advanced settings → Show debug info</b> doesn't say <em>Controller: hooked</em> and <em>PipeWire: ok</em>, restart the Deck.</p>
+      <summary>Pressing the back buttons does nothing</summary>
+      <p>Check that the capture areas are setup for the current game, and that a hotkey is assigned to them.</p>
     </details>
     <details>
       <summary>It says "No text found" or "Accuracy low".</summary>
-      <p>The box probably doesn't sit exactly over the text. Open the plugin with the game's text box on screen, press <b>Change area</b>, and drag the box over it. Very small or stylised fonts can also read poorly.</p>
+      <p>Check to make sure the capture area is correctly positioned over the text. However, if the font is overly stylized, the OCR may not be able to recognize it.</p>
     </details>
     <details>
       <summary>The QR code won't open on my phone.</summary>
-      <p>Phone and Deck need to be on the same Wi-Fi (not mobile data or a guest network). The link expires after about five minutes — press <b>Export via QR code</b> again for a fresh one.</p>
-    </details>
-    <details>
-      <summary>Japanese Lookup doesn't show up in Decky after installing.</summary>
-      <p>Restart the Deck and check again. Sideloaded zips aren't Decky's officially supported path and can be flaky; if it still won't appear, <a href="https://github.com/scallsen/decky-japanese-lookup#install-from-source">install from source</a> instead.</p>
+      <p>Phone and Deck need to be on the same Wi-Fi network. The link expires after about five minutes — press <b>Export via QR code</b> again for a fresh one.</p>
     </details>
     <details>
       <summary>Can I use Yomitan instead of the built-in lookup?</summary>
-      <p>Yes. Every captured line is also shown on a local page at <code>localhost:8766</code> and copied to the clipboard, so Yomitan in Firefox (Desktop Mode) can pick it up. Details are in the <a href="https://github.com/scallsen/decky-japanese-lookup#optional-yomitan-in-firefox">README</a>.</p>
+      <p>Yes. Every captured line is also shown on a local page, found under <b>Advanced settings → Show debug info</b> </p>
     </details>
     <details>
       <summary>How much space does it take, and how do I remove it?</summary>
-      <p>About 800 MB once the OCR engine and dictionary are downloaded. <b>Advanced settings → Delete downloaded data</b> frees that space but keeps the plugin. Uninstalling from Decky's plugin list removes everything, including your Anki queue — export it first.</p>
+      <p>About 800 MB once the OCR engine and dictionary are downloaded. <b>Advanced settings → Delete downloaded data</b> frees that space but keeps the plugin. Uninstalling from Decky's plugin list should automatically remove those files as well.</p>
+    </details>
+    <details>
+      <summary>How do I update the plugin?</summary>
+      <p>Download the new version and install through Decky. The shared dependencies (OCR engine, dictionary, etc) will be accessible to the newer version.</p>
     </details>
     <details>
       <summary>Where does the dictionary data come from?</summary>
