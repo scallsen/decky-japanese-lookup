@@ -73,6 +73,15 @@ async def _read_b64(path: str) -> str:
 
 class Plugin:
     async def _main(self):
+        # One-time migration from the plugin's old folder name ("vn-lookup")
+        # to "japanese-lookup" — safe/idempotent: each call is a no-op once
+        # the old path is gone. Must run before Settings/etc. below read
+        # from SETTINGS_DIR/RUNTIME_DIR/LOG_DIR, which already point at the
+        # new location.
+        decky.migrate_settings(os.path.join(decky.DECKY_HOME, "settings", "vn-lookup"))
+        decky.migrate_runtime(os.path.join(decky.DECKY_HOME, "data", "vn-lookup"))
+        decky.migrate_logs(os.path.join(decky.DECKY_HOME, "logs", "vn-lookup"))
+
         self.settings = Settings(SETTINGS_DIR)
         self.installer = RuntimeInstaller(RUNTIME_DIR)
         self.downloader = ModelDownloader(RUNTIME_DIR)

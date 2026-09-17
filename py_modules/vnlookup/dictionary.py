@@ -319,7 +319,7 @@ class Dictionary:
 
     def _download(self, url: str, dest: str):
         self._set(step="downloading Jitendex")
-        req = urllib.request.Request(url, headers={"User-Agent": "vn-lookup"})
+        req = urllib.request.Request(url, headers={"User-Agent": "japanese-lookup"})
         tmp = dest + ".part"
         with urllib.request.urlopen(req, timeout=120,
                                     context=ssl_context()) as resp, \
