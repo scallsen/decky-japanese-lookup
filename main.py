@@ -112,6 +112,21 @@ class Plugin:
         logger.info("Japanese Lookup backend up")
 
     async def _unload(self):
+        # Must be first: Decky SIGKILLs this process 5s after calling
+        # _unload, no matter what — confirmed happening on every single
+        # unload logged so far, including ones well under 5s of real work.
+        # subprocess.Popen returns near-instantly, so spawning here survives
+        # the SIGKILL; spawning it last (as this used to) meant it never
+        # even ran, since the awaits below reliably eat the whole 5s budget.
+        #
+        # On this Decky Loader build, uninstalling only ever calls _unload —
+        # _uninstall (below) is never invoked, confirmed by its absence from
+        # the backend log across several real uninstall tests. _unload also
+        # fires on every update/restart, so spawning here is a safe no-op
+        # then too: the plugin folder never actually disappears for the 15s
+        # the watcher requires before it'll delete anything.
+        self._spawn_uninstall_watcher()
+
         monitor = getattr(self, "monitor", None)
         if monitor:
             # stop() joins the reader thread; keep it off the event loop
@@ -122,13 +137,6 @@ class Plugin:
         anki_server = getattr(self, "anki_server", None)
         if anki_server:
             await anki_server.stop()
-        # On this Decky Loader build, uninstalling only ever calls _unload —
-        # _uninstall (below) is never invoked, confirmed by its absence from
-        # the backend log across several real uninstall tests. _unload also
-        # fires on every update/restart, so spawn the same watcher here too:
-        # it's a safe no-op then, since the plugin folder never actually
-        # disappears for the 15s the watcher requires before deleting data.
-        self._spawn_uninstall_watcher()
 
     async def _uninstall(self):
         # Decky also calls this when updating, and kills us 5s later — so
