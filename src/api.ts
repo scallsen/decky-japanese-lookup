@@ -13,6 +13,7 @@ export interface VnlEvent {
 }
 
 export interface PluginStatus {
+  version: string;
   monitor: { running: boolean; initialized: boolean; device_path: string | null };
   runtime: { installed: boolean; lookup_installed: boolean; anki_installed: boolean; installing: boolean; step: string; error: string | null };
   models: { installed: boolean; downloading: boolean; progress: number; error: string | null; approx_size_mb: number };
@@ -61,6 +62,13 @@ export interface LookupStatus {
 
 export interface Region { x: number; y: number; w: number; h: number }
 
+// Steam Deck's screen (1280x800) — region x/y/w/h fractions and saved
+// screenshots are both defined against this ratio; the region editor
+// (RegionEditor.tsx) and the QAM thumbnail (Panel.tsx) must use the exact
+// same ratio + `objectFit: "fill"`, or a region's box won't land on the
+// same screen content it was drawn on.
+export const SCREEN_ASPECT_RATIO = "16 / 10";
+
 // Capture-area profile key for whatever's running when Steam can't report
 // an appid (used both when no game is running and, in practice, never
 // reached from a real capture — captures only fire while Router.MainRunningApp
@@ -82,6 +90,16 @@ export const getEditorFrame = callable<[], { ok: boolean; image?: string; error?
 export const captureEditorFrame = callable<[], { ok: boolean; image?: string; error?: string }>("capture_editor_frame");
 export const detectRegion = callable<[], { ok: boolean; region?: Region; image?: string; error?: string }>("detect_region");
 
+// per capture-area screenshot, persisted so the QAM thumbnail can preview
+// the region against the real screen it was picked from
+export const saveAreaScreenshot = callable<
+  [imageB64: string, existingId?: string | null],
+  { ok: boolean; id?: string; error?: string }
+>("save_area_screenshot");
+export const getAreaScreenshot = callable<[areaId: string], { ok: boolean; image?: string; error?: string }>("get_area_screenshot");
+export const deleteAreaScreenshot = callable<[areaId: string], { ok: boolean }>("delete_area_screenshot");
+export const deleteAllAreaScreenshots = callable<[], { ok: boolean }>("delete_all_area_screenshots");
+
 // native lookup
 export const tokenizeLine = callable<[text: string], { ok: boolean; tokens?: Token[]; error?: string }>("tokenize_line");
 export const lookupWord = callable<[queries: string[]], { ok: boolean; entries: DictEntry[] }>("lookup_word");
@@ -97,7 +115,7 @@ export const createAnkiCard = callable<
     game: string,
     wordType: string,
   ],
-  { ok: boolean; buffered?: number; error?: string }
+  { ok: boolean; buffered?: number; id?: string; error?: string }
 >("create_anki_card");
 export const clearAnkiBuffer = callable<[], { ok: boolean }>("clear_anki_buffer");
 export const installAnkiExportRuntime = callable<[], { started: boolean }>("install_anki_export_runtime");

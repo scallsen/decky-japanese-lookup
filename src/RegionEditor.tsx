@@ -11,6 +11,7 @@ import {
   GamepadEvent,
   ModalRoot,
   Navigation,
+  QuickAccessTab,
   showModal,
 } from "@decky/ui";
 import { CSSProperties, FC, useEffect, useRef, useState } from "react";
@@ -19,6 +20,7 @@ import {
   detectRegion,
   getEditorFrame,
   Region,
+  SCREEN_ASPECT_RATIO,
 } from "./api";
 
 const MIN = 0.05;
@@ -42,7 +44,7 @@ const clampRegion = (r: Region): Region => {
 export const openRegionEditor = (
   title: string,
   initial: Region,
-  onSave: (region: Region) => void
+  onSave: (region: Region, image: string | null) => void
 ) => {
   Navigation.CloseSideMenus();
   setTimeout(async () => {
@@ -89,9 +91,9 @@ const handleStyle = (corner: string): CSSProperties => ({
   touchAction: "none",
 });
 
-export const RegionEditorModal: FC<{
+const RegionEditorModal: FC<{
   title: string;
-  onSave: (region: Region) => void;
+  onSave: (region: Region, image: string | null) => void;
   initial: Region;
   initialImage?: string;
   initialMessage?: string;
@@ -181,8 +183,12 @@ export const RegionEditorModal: FC<{
   };
 
   const save = () => {
-    onSave(region);
+    onSave(region, image);
     closeModal?.();
+    // mirrors the post-capture flow in index.tsx: closing this modal drops
+    // the user back on the bare game view, so bring the QAM back up rather
+    // than leaving them to reopen it by hand
+    Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
   };
 
   const onDirection = (e: GamepadEvent) => {
@@ -258,7 +264,7 @@ export const RegionEditorModal: FC<{
           style={{
             position: "relative",
             width: "100%",
-            aspectRatio: "16 / 10",
+            aspectRatio: SCREEN_ASPECT_RATIO,
             background: "#000",
             overflow: "hidden",
             borderRadius: 6,

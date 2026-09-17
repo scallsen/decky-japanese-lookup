@@ -10,7 +10,9 @@ batch .apkg on demand, scanned onto a phone via QR code.
 import asyncio
 import base64
 import os
+import re
 import time
+import uuid
 
 import decky
 from vnlookup import cleanup
@@ -40,6 +42,10 @@ LOG_DIR = decky.DECKY_PLUGIN_LOG_DIR
 PLUGIN_DIR = decky.DECKY_PLUGIN_DIR
 CAPTURES_DIR = os.path.join(RUNTIME_DIR, "captures")
 PREVIEW_PNG = os.path.join(RUNTIME_DIR, "preview.png")
+# one PNG per capture area, keyed by a minted id (see save_area_screenshot) —
+# lives under SETTINGS_DIR so it survives updates but is wiped on uninstall
+AREA_SCREENSHOTS_DIR = os.path.join(SETTINGS_DIR, "area_screenshots")
+AREA_SCREENSHOT_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 # bucket for captures with no Steam appid to key by — matches
 # UNKNOWN_APP_KEY in src/api.ts
@@ -87,6 +93,7 @@ class Plugin:
         self._last_result = None
 
         os.makedirs(CAPTURES_DIR, exist_ok=True)
+        os.makedirs(AREA_SCREENSHOTS_DIR, exist_ok=True)
         self.monitor.start()
         try:
             await self.delivery.start()
@@ -377,6 +384,61 @@ class Plugin:
         finally:
             self._busy = False
 
+    def _area_screenshot_path(self, area_id: str) -> str | None:
+        if not AREA_SCREENSHOT_ID_RE.match(area_id or ""):
+            return None
+        return os.path.join(AREA_SCREENSHOTS_DIR, f"{area_id}.png")
+
+    async def save_area_screenshot(self, image_b64: str, existing_id: str | None = None):
+        """Persist the screenshot shown in the region editor for one capture
+        area, so the QAM thumbnail can preview it later. Reuses existing_id's
+        file when given (re-editing an area), otherwise mints a new id."""
+        area_id = existing_id if existing_id and AREA_SCREENSHOT_ID_RE.match(existing_id) else uuid.uuid4().hex
+        path = os.path.join(AREA_SCREENSHOTS_DIR, f"{area_id}.png")
+        try:
+            data = base64.b64decode(image_b64)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+        def write():
+            os.makedirs(AREA_SCREENSHOTS_DIR, exist_ok=True)
+            tmp = f"{path}.tmp"
+            with open(tmp, "wb") as f:
+                f.write(data)
+            os.replace(tmp, path)
+
+        try:
+            await asyncio.to_thread(write)
+            return {"ok": True, "id": area_id}
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+
+    async def get_area_screenshot(self, area_id: str):
+        path = self._area_screenshot_path(area_id)
+        if not path or not os.path.exists(path):
+            return {"ok": False, "error": "no screenshot saved"}
+        return {"ok": True, "image": await _read_b64(path)}
+
+    async def delete_area_screenshot(self, area_id: str):
+        path = self._area_screenshot_path(area_id)
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        return {"ok": True}
+
+    async def delete_all_area_screenshots(self):
+        try:
+            for f in os.listdir(AREA_SCREENSHOTS_DIR):
+                try:
+                    os.remove(os.path.join(AREA_SCREENSHOTS_DIR, f))
+                except OSError:
+                    pass
+        except OSError:
+            pass
+        return {"ok": True}
+
     # ---- native lookup -----------------------------------------------------
 
     async def tokenize_line(self, text: str):
@@ -429,8 +491,8 @@ class Plugin:
         """Buffer a card for later batch export as a .apkg via QR code."""
         if not self.settings.get("anki_enabled"):
             return {"ok": False, "error": "Anki integration is disabled in settings"}
-        self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
-        return {"ok": True, "buffered": self.anki_buffer.count()}
+        card = self.anki_buffer.add(expression, reading, glosses, sentence, game, word_type)
+        return {"ok": True, "buffered": self.anki_buffer.count(), "id": card["id"]}
 
     async def clear_anki_buffer(self):
         self.anki_buffer.clear()
@@ -486,6 +548,7 @@ class Plugin:
         except Exception as e:
             probe = {"error": str(e)}
         return {
+            "version": decky.DECKY_PLUGIN_VERSION,
             "monitor": self.monitor.get_status(),
             "runtime": self.installer.get_status(),
             "models": self.downloader.get_status(),
