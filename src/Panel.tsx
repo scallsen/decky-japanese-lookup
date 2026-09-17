@@ -716,8 +716,13 @@ export const Panel: FC = () => {
 
       <PanelSection title="About / sources">
         <PanelSectionRow>
+          <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}>
+            <div>Version {status?.version ?? "?"}</div>
+            <div>Developed by Simon Callsen</div>
+            <div>github.com/scallsen/japanese-lookup</div>
+          </div>
           <div style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
-            Japanese Lookup v{status?.version ?? "?"} — GPL-3.0-or-later; capture, controller-hook, and
+            GPL-3.0-or-later; capture, controller-hook, and
             overlay code are ported from Decky-Translator (cat-in-a-box).
             The built-in dictionary downloads Jitendex (jitendex.org, CC
             BY-SA 4.0), built from JMdict/EDICT by the Electronic Dictionary
