@@ -1,4 +1,6 @@
-# Japanese Lookup — read Japanese games on the Steam Deck, and mine words into Anki
+<img width="1280" height="640" alt="gh-hero-image" src="https://github.com/user-attachments/assets/27b3df76-f70a-4cd4-b54a-835f617d3f9b" />
+
+# Japanese Lookup for Decky
 
 A [Decky Loader](https://decky.xyz/) plugin for reading Japanese visual novels (or any game with text boxes) without leaving gaming mode:
 
@@ -11,33 +13,10 @@ Everything runs locally on the Deck. No Anki, browser, or account is needed on t
 
 ---
 
-## Contents
+## Install 
 
-- [What you need](#what-you-need)
-- [Quick install (no computer needed)](#quick-install-no-computer-needed)
-- [Install from source](#user-content-install-from-source) — one-time, about 20–30 minutes
-- [First launch on the Deck](#first-launch-on-the-deck)
-- [Everyday use](#everyday-use)
-- [Updating](#updating)
-- [Freeing up space and uninstalling](#freeing-up-space-and-uninstalling)
-- [Troubleshooting](#troubleshooting)
-- [Optional: Yomitan in Firefox](#optional-yomitan-in-firefox)
-- [For contributors](#for-contributors)
-- [Known limitations](#known-limitations)
-- [Credits & data sources](#credits--data-sources)
-
----
-
-## What you need
-
-- A **Steam Deck** on Wi-Fi.
-- A **computer running macOS or Linux** on the same network, to build the plugin and copy it to the Deck. (Windows should work through WSL, but is untested.)
-- About **600 MB free** on the Deck for the OCR engine and dictionary.
-- *(Only for Anki)* **AnkiMobile** (iOS) or **AnkiDroid** (Android) on a phone on the same Wi-Fi.
-
----
-
-## Quick install (no computer needed)
+> [!TIP]
+> A [visual step-by-step guide](https://scallsen.github.io/japanese-lookup/) is available on the plugin website.
 
 Every [release](https://github.com/scallsen/japanese-lookup/releases/latest) includes a ready-to-use `japanese-lookup-vX.Y.Z.zip` — no Node, pnpm, or SSH required. This uses Decky's own zip-sideloading, the same mechanism other unlisted plugins use since this one isn't on the Decky store.
 
@@ -51,14 +30,10 @@ Then skip ahead to [First launch on the Deck](#first-launch-on-the-deck).
 
 To update later, just repeat these steps with the newest release's zip — it overwrites the old install and keeps your settings, dictionary, and Anki queue.
 
-Sideloaded zips aren't Decky's officially supported install path and can be flakier than the store, so if step 4 hangs or the plugin never appears, fall back to [installing from source](#user-content-install-from-source) below.
-
 ---
 
-<a id="install-from-source"></a>
-
 <details>
-<summary><h2>Install from source</h2></summary>
+<summary><h2>Install from source (Not required for general use)</h2></summary>
 
 Building it yourself also works, and is the only option if you want to change the code. You build the plugin from this repository and a script copies it to your Deck over the network. The steps below walk you through it.
 
@@ -173,10 +148,6 @@ The first time, the panel shows a few one-time download buttons. Make sure the D
 | Setup   | **1. Install OCR runtime**                  | ~400 MB  |
 | Setup   | **2. Download OCR models**                  | ~22 MB   |
 
-The OCR runtime takes a few minutes. The buttons disappear once everything is installed. If one fails, a red error appears underneath — press it again to retry.
-
-That's it — you're ready to go.
-
 ---
 
 ## Everyday use
@@ -187,8 +158,6 @@ Start your game. When a line of Japanese text is on screen, **press L5**.
 
 A brief outline flashes over the area being read, and the Quick Access menu opens on Japanese Lookup with the line shown as words.
 
-> Captures only work while a game is running, so the plugin never tries to read the Steam menus.
-
 ### 2. Look up words
 
 - **With the D-pad:** move over a word and pause — the definition appears below. Press **A** to jump into the definitions and scroll through them.
@@ -198,34 +167,44 @@ Grammar words (particles etc.) are skipped by the D-pad but can still be tapped.
 
 ### 3. Save words for Anki *(optional)*
 
-1. Scroll down to the **Anki** section and turn on **Enable Anki integration**. Optionally change the **Deck name** (default: *Steam Deck Vocabulary*).
-2. When looking up a word, press **A** on a definition (or tap **+ Anki**). You'll see *✓ Added … to Anki queue*.
+1. Scroll down to the **Anki** section and turn on **Enable Anki integration**. 
+2. When looking up a word, press **A** on a definition (or tap **+**). You'll see *✓ Added … to Anki queue*.
 
-Each card has the word on the front, and the reading, meaning, word type, the full sentence, and the game's name on the back.
+The details you see will be added to the card in Anki, along with the current sentence and name of the game.
 
-Your queue is kept on the Deck until you export it, so you can collect words over several play sessions. Press the **eye button** next to the card count to preview the cards and remove any you don't want.
+Your queue is kept on the Deck until you clear it. Press the **eye icon** next to the card count to preview the cards and remove any you don't want.
 
 ### 4. Send your cards to your phone
 
 1. Make sure your phone is on the **same Wi-Fi** as the Deck.
-2. In the **Anki** section, press **Export via QR code**. (The very first time, this button says **Install Anki export runtime** — press it, wait, then press it again.)
+2. In the **Anki** section, press **Export via QR code**. 
 3. **Scan the QR code** with your phone's camera and open the link.
-4. When the download finishes, choose **Open in Anki** (AnkiMobile / AnkiDroid). The cards are imported into your deck.
+4. When the download finishes, choose **Open in Anki** (AnkiMobile / AnkiDroid). Follow the app steps to import the new cards.
 5. Once you've checked the cards arrived, press **Clear Anki queue** so they aren't exported twice.
 
 The QR link only works for about 5 minutes. If it has expired, just export again.
 
 ### Adjusting the capture area
 
-By default, **L5** reads the bottom third of the screen, where most visual novels put their text box. If a game puts its text elsewhere, or the plugin picks up names, buttons, or other clutter:
+By default, **L5** reads the bottom third of the screen. You should change this for each game to capture the text area accurately.
 
 1. **With the game running and its text box on screen**, open Japanese Lookup and press **Change area** in the **Capture area** section. The menu closes and a screenshot of the game appears with a blue box on top.
-2. Drag the box over the text box (or use the D-pad to move it, **L1/R1** to change its width and **L2/R2** its height). **X** tries to find the text automatically.
+2. Drag the box over the text box, or use the button controls.
 3. Press **A** to save.
 
-Changes are saved **for the game that's currently running**; other games keep using the default area.
+Changes are saved **for the game that's currently running**.
 
-You can also change which back button triggers the capture (L4, R4, L5, or R5) using the drop-down next to *Change area*, and press **Add capture area** to give a second button its own area (e.g. one for the text box, one for the whole screen).
+You can optionally change the hotkey for capture to use the triggers (L1,R1), bumpers (L2, R2), pressing the joysticks (L3, R3), or the back buttons (L4, L5, R4, R5).
+
+#### Create additional capture areas
+
+For games that display text in different areas, create additional capture areas for them.
+
+1. **With the game running and its text box on screen**, open Japanese Lookup and press **Add capture area** in the **Capture area** section.
+2. Repeat the steps from the above section for the new capture area.
+3. Change the hotkey by selecting the dropdown.
+
+You can delete redundant capture areas by pressing **Delete**.
 
 To reset every game back to the default area, use **Advanced settings → Delete all capture areas**.
 
@@ -233,15 +212,7 @@ To reset every game back to the default area, use **Advanced settings → Delete
 
 ## Updating
 
-On your computer, from the `japanese-lookup` folder:
-
-```bash
-git pull
-pnpm install
-./deploy.sh
-```
-
-Your settings, downloaded dictionary, and Anki queue are kept.
+Follow the same steps needed to install the plugin. Decky will recognize the new version as an update, and replace the old plugin. The dependencies (OCR model, Dictionary, etc) will carry over to the new version.
 
 ---
 
@@ -251,91 +222,12 @@ Your settings, downloaded dictionary, and Anki queue are kept.
 
 **To remove the plugin completely**, open Quick Access (**…**) → **Decky** tab → gear icon → **Plugins**, open the menu next to Japanese Lookup, and choose **Uninstall**. About 20 seconds later, everything the plugin downloaded or saved is deleted too: the OCR engine, models, dictionary, settings, Anki queue, and logs.
 
-Export your Anki queue first if it still has cards you want to keep.
-
-Updating (installing a newer zip, or running `./deploy.sh` again) is not treated as uninstalling, so your data is kept.
-
-<details>
-<summary>Removing leftovers by hand</summary>
-
-If the plugin was uninstalled while it wasn't running, or with a version from before this cleanup existed, its data may still be there. To delete it, run this in Konsole on the Deck (or over SSH):
-
-```bash
-rm -rf ~/homebrew/data/vn-lookup ~/homebrew/settings/vn-lookup ~/homebrew/logs/vn-lookup ~/.vn-lookup-deploy
-```
-
-Older versions also left pip's download cache in `~/.cache/pip` (about 300 MB). Other apps can use that cache too; it's safe to delete, and anything that needs it will download again:
-
-```bash
-rm -rf ~/.cache/pip
-```
-
-</details>
-
----
-
-## Troubleshooting
-
-**`ssh` / `./deploy.sh` can't reach `steamdeck.local`** Use the Deck's IP address instead (Settings → Internet → your network), both in the commands and in `.vscode/settings.json`. Make sure the Deck is awake and on the same network.
-
-**`./deploy.sh` asks for a password or says "Permission denied"** Your SSH key isn't set up — redo [Step 2](#step-2--connect-your-computer-to-the-deck). If it fails at the *Installing as root* step, check `deckpass` in `.vscode/settings.json` matches the Deck's `deck` password.
-
-**Japanese Lookup doesn't show up in Decky** Restart the Deck, then check again. If it's still missing, rerun `./deploy.sh` and look for errors in its output.
-
-**Pressing L5 does nothing**
-- Make sure a game is running (it doesn't work from the Steam menus).
-- Check the capture area's drop-down is set to **L5** and not *None*.
-- Open **Advanced settings → Show debug info**. *Controller* should say **hooked** and *PipeWire* should say **ok**. If not, restart the Deck.
-
-**"No text found" or "Accuracy low – check capture area"** The box probably doesn't sit exactly over the text. See [Adjusting the capture area](#adjusting-the-capture-area). Very small or stylised fonts can also read poorly.
-
-**A word shows "No dictionary hits"** The OCR most likely misread a character. Try capturing the line again, or select the word next to it.
-
-**The QR code won't open on my phone** Your phone must be on the same Wi-Fi as the Deck (not mobile data or a guest network). The link expires after about 5 minutes — press *Export via QR code* again for a new one.
-
-**Something else broke** Logs are on the Deck in `~/homebrew/logs/vn-lookup/` (one file per start). To see the end of the newest one from your computer:
-
-```bash
-ssh deck@steamdeck.local 'cd ~/homebrew/logs/vn-lookup && tail -n 100 "$(ls -t | head -1)"'
-```
-
-Please include it if you open an issue.
 
 ---
 
 ## Optional: Yomitan in Firefox
 
-If you prefer [Yomitan](https://github.com/yomidevs/yomitan) (for example to use your own dictionaries), the plugin also shows every captured line on a local page at `http://localhost:8766/` and copies it to the clipboard. **You don't need any of this for the built-in lookup.**
-
-Requires **SteamOS 3.7.14 or newer** for the clipboard to reach Firefox.
-
-1. In Desktop Mode, install Firefox (`flatpak install -y flathub org.mozilla.firefox`) and add it to Steam as a non-Steam game, with launch options `run --branch=stable --arch=x86_64 --command=firefox org.mozilla.firefox`.
-2. In Firefox, install [Yomitan](https://addons.mozilla.org/firefox/addon/yomitan/) and import dictionaries.
-3. In Yomitan's settings, under **Clipboard**, turn on both clipboard monitoring options.
-4. Set Firefox's homepage to `http://localhost:8766/`.
-
-Then: press L5 in-game, switch to Firefox, and hover the line to look it up.
-
----
-
-## For contributors
-
-Before opening a pull request, run the same checks CI runs:
-
-```bash
-pnpm lint && pnpm typecheck && pnpm build   # frontend: ESLint, tsc, rollup
-pip install ruff pytest
-ruff check . && pytest -q                   # backend: lint + unit tests
-```
-
----
-
-## Known limitations
-
-- Made for single text boxes, as in visual novels; no support for dialogue logs or several speakers on screen at once.
-- The capture area may need adjusting per game.
-- Exported Anki cards don't include a screenshot of the game (yet).
-- Yomitan's clipboard monitor in Firefox can stop after ~30 seconds idle; the `localhost:8766` page doesn't have this problem.
+If you prefer [Yomitan](https://github.com/yomidevs/yomitan) (for example to use your own dictionaries), the plugin also shows every captured line on a local page at found by pressing **Show debug info** in the **Advanced settings** section. **You don't need any of this for the built-in lookup.**
 
 ---
 
