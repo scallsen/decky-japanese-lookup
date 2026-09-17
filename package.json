@@ -1,6 +1,6 @@
 {
   "name": "japanese-lookup",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Decky plugin: capture VN text boxes, OCR them locally, and pipe the text to Yomitan for lookup and Anki mining — all from gaming mode.",
   "type": "module",
   "scripts": {
