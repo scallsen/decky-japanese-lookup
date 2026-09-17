@@ -548,6 +548,7 @@ class Plugin:
         except Exception as e:
             probe = {"error": str(e)}
         return {
+            "version": decky.DECKY_PLUGIN_VERSION,
             "monitor": self.monitor.get_status(),
             "runtime": self.installer.get_status(),
             "models": self.downloader.get_status(),

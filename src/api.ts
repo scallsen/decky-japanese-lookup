@@ -13,6 +13,7 @@ export interface VnlEvent {
 }
 
 export interface PluginStatus {
+  version: string;
   monitor: { running: boolean; initialized: boolean; device_path: string | null };
   runtime: { installed: boolean; lookup_installed: boolean; anki_installed: boolean; installing: boolean; step: string; error: string | null };
   models: { installed: boolean; downloading: boolean; progress: number; error: string | null; approx_size_mb: number };

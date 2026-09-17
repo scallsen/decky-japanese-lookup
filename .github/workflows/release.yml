@@ -27,6 +27,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
+      # Decky reads the plugin's version straight from package.json (exposed
+      # to the backend as decky.DECKY_PLUGIN_VERSION) — sync it to the tag
+      # being released so it can never drift from what's actually shipped.
+      - name: Sync package.json version to the release tag
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
       # Same layout deploy.sh rsyncs to the Deck, so a zip built here installs
       # identically via Decky's "Install from zip" — no build tools needed.
       - name: Package plugin
