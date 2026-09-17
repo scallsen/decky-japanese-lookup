@@ -32,14 +32,20 @@ import time
 KEEP_ON_DATA_DELETE = frozenset({"anki_buffer.json"})
 
 POLL_S = 0.5
-# Continuous absence this long means uninstall. An update's gap between
-# Decky's rmtree and the unzip is well under a second (the zip is already
-# downloaded by then).
-GONE_CONFIRM_S = 15.0
-# Never seeing the plugin gone within this long means either an update
-# too quick to catch between polls, or an uninstall that failed — keep
-# the data in both cases. Decky's own teardown takes at most ~6s.
-MAX_WAIT_S = 120.0
+# Continuous absence this long means uninstall. This plugin isn't on the
+# Decky store, so "update" in practice means a human manually re-running
+# Install from zip — navigating Decky's menus and a file picker between the
+# old copy disappearing and the new one landing, easily well past a few
+# seconds. 15s was calibrated for a store-style atomic swap and measurably
+# too short: it mistook a real (slow) reinstall for an uninstall and
+# deleted live data mid-install. A full minute comfortably covers a human
+# doing this by hand.
+GONE_CONFIRM_S = 60.0
+# Never seeing the plugin gone within this long means either a reinstall
+# that's taking unusually long, or an uninstall that failed — keep the
+# data in both cases (silently keeping data too long is recoverable via
+# "Delete downloaded data"; wrongly deleting it isn't).
+MAX_WAIT_S = 300.0
 
 # Filled in lazily by spawn_uninstall_cleanup(), never referenced at module
 # scope (this file's own source is also exec()'d verbatim in the detached
@@ -76,15 +82,25 @@ def disk_usage(paths: list[str]) -> int:
     return total
 
 
-def remove_paths(paths: list[str]) -> None:
+def remove_paths(paths: list[str]) -> list[tuple[str, str]]:
+    """Best-effort delete. Previously used shutil.rmtree(..., ignore_errors=True),
+    which silently swallows any failure (permission error, a file still open,
+    one bad entry among tens of thousands in a venv) — the caller would log
+    "removed" regardless of whether anything on disk actually changed.
+    Returns (path, error) for anything left behind, so callers can tell a
+    real success from one that only looked like one."""
+    failures = []
     for path in paths:
-        if os.path.isdir(path) and not os.path.islink(path):
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            try:
+        try:
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            else:
                 os.remove(path)
-            except FileNotFoundError:
-                pass
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            failures.append((path, str(e)))
+    return failures
 
 
 def plugin_installed(plugins_root: str, plugin_name: str) -> bool:
@@ -138,7 +154,10 @@ def cleanup_after_uninstall(cfg: dict) -> str:
         **cfg.get("timings", {}))
     if not uninstalled:
         return "plugin still installed (update or reinstall), kept its data"
-    remove_paths(cfg["paths"])
+    failures = remove_paths(cfg["paths"])
+    if failures:
+        detail = "; ".join(f"{p}: {e}" for p, e in failures)
+        return f"plugin uninstalled, but FAILED to fully remove some paths: {detail}"
     return "plugin uninstalled, removed " + ", ".join(cfg["paths"])
 
 
