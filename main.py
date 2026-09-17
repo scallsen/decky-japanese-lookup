@@ -122,11 +122,23 @@ class Plugin:
         anki_server = getattr(self, "anki_server", None)
         if anki_server:
             await anki_server.stop()
+        # On this Decky Loader build, uninstalling only ever calls _unload —
+        # _uninstall (below) is never invoked, confirmed by its absence from
+        # the backend log across several real uninstall tests. _unload also
+        # fires on every update/restart, so spawn the same watcher here too:
+        # it's a safe no-op then, since the plugin folder never actually
+        # disappears for the 15s the watcher requires before deleting data.
+        self._spawn_uninstall_watcher()
 
     async def _uninstall(self):
         # Decky also calls this when updating, and kills us 5s later — so
         # don't delete here; a detached watcher deletes only if the plugin
-        # stays gone (see vnlookup/uninstall.py)
+        # stays gone (see vnlookup/uninstall.py). Kept as a second trigger
+        # alongside _unload's call above, in case some Decky builds do call
+        # this — spawning the watcher twice is harmless (idempotent).
+        self._spawn_uninstall_watcher()
+
+    def _spawn_uninstall_watcher(self):
         folder = os.path.basename(PLUGIN_DIR)
         # every dir Decky gave this plugin is named after its folder; never
         # hand the watcher anything else, even if an env var is off

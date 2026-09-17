@@ -41,6 +41,13 @@ GONE_CONFIRM_S = 15.0
 # the data in both cases. Decky's own teardown takes at most ~6s.
 MAX_WAIT_S = 120.0
 
+# Filled in lazily by spawn_uninstall_cleanup(), never referenced at module
+# scope (this file's own source is also exec()'d verbatim in the detached
+# child process via `python -c "exec(sys.stdin.read())"`, where __file__
+# isn't defined at all — keeping this None-until-needed avoids ever
+# touching __file__ from that context).
+_OWN_SOURCE: str | None = None
+
 
 def downloaded_data_paths(runtime_dir: str) -> list[str]:
     """Everything in the runtime dir except what the user created."""
@@ -144,10 +151,17 @@ def spawn_uninstall_cleanup(*, plugin_name: str, plugins_root: str, paths: list[
     from .deps import SYSTEM_PYTHON
     from .worker import worker_env
 
+    global _OWN_SOURCE
+    if _OWN_SOURCE is None:
+        # Read once, as early as possible (first real call, normally right
+        # after plugin startup) — this file may no longer exist on disk by
+        # the time a later call needs it, if Decky has already removed the
+        # plugin folder.
+        with open(__file__, encoding="utf-8") as f:
+            _OWN_SOURCE = f.read()
+
     cfg = {"plugin_name": plugin_name, "plugins_root": plugins_root,
            "paths": paths, "timings": timings or {}}
-    with open(__file__, encoding="utf-8") as f:
-        source = f.read()
     with open(log_path, "a", encoding="utf-8") as log:
         proc = subprocess.Popen(
             [python or SYSTEM_PYTHON, "-c", "import sys; exec(sys.stdin.read())",
@@ -155,7 +169,7 @@ def spawn_uninstall_cleanup(*, plugin_name: str, plugins_root: str, paths: list[
             stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT,
             start_new_session=True, close_fds=True, cwd="/", env=worker_env())
     # a few KB: fits the pipe buffer, so this never blocks on the child
-    proc.stdin.write(source.encode())
+    proc.stdin.write(_OWN_SOURCE.encode())
     proc.stdin.close()
     return proc
 
