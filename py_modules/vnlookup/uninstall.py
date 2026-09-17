@@ -76,15 +76,25 @@ def disk_usage(paths: list[str]) -> int:
     return total
 
 
-def remove_paths(paths: list[str]) -> None:
+def remove_paths(paths: list[str]) -> list[tuple[str, str]]:
+    """Best-effort delete. Previously used shutil.rmtree(..., ignore_errors=True),
+    which silently swallows any failure (permission error, a file still open,
+    one bad entry among tens of thousands in a venv) — the caller would log
+    "removed" regardless of whether anything on disk actually changed.
+    Returns (path, error) for anything left behind, so callers can tell a
+    real success from one that only looked like one."""
+    failures = []
     for path in paths:
-        if os.path.isdir(path) and not os.path.islink(path):
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            try:
+        try:
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            else:
                 os.remove(path)
-            except FileNotFoundError:
-                pass
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            failures.append((path, str(e)))
+    return failures
 
 
 def plugin_installed(plugins_root: str, plugin_name: str) -> bool:
@@ -138,7 +148,10 @@ def cleanup_after_uninstall(cfg: dict) -> str:
         **cfg.get("timings", {}))
     if not uninstalled:
         return "plugin still installed (update or reinstall), kept its data"
-    remove_paths(cfg["paths"])
+    failures = remove_paths(cfg["paths"])
+    if failures:
+        detail = "; ".join(f"{p}: {e}" for p, e in failures)
+        return f"plugin uninstalled, but FAILED to fully remove some paths: {detail}"
     return "plugin uninstalled, removed " + ", ".join(cfg["paths"])
 
 

@@ -608,7 +608,9 @@ class Plugin:
             await self.anki_server.stop()
             paths = downloaded_data_paths(RUNTIME_DIR)
             freed = await asyncio.to_thread(disk_usage, paths)
-            await asyncio.to_thread(remove_paths, paths)
+            failures = await asyncio.to_thread(remove_paths, paths)
+            if failures:
+                logger.error(f"delete_downloaded_data: failed to remove {failures}")
             # back to a first-launch state: empty dictionary db + captures dir
             os.makedirs(CAPTURES_DIR, exist_ok=True)
             self.dictionary = await asyncio.to_thread(
